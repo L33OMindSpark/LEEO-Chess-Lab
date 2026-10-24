@@ -10,7 +10,7 @@ const sample = (() => { let x = 7, r = 1750; const pts = []; for (let i = 0; i <
 
 const steps = [
   ['Every move gets a score', 'Stockfish rates the position after each move. The bar beside the board shows who is ahead and by how much.'],
-  ['Mistakes are marked where they happen', 'Giving away 10% of your winning chances is an inaccuracy, 20% a mistake and 30% a blunder. The marker lands on the exact move.'],
+  ['Mistakes are marked where they happen', 'Like chess.com, a move that gives away 5% of your winning chances is an inaccuracy, 10% a mistake and 20% a blunder. The marker lands on the exact move.'],
   ['You see what to play instead', 'The engine’s choice is drawn on the board from the position where you went wrong.'],
   ['Then you train on your own errors', 'Moves you missed in real games come back as puzzles, so you practise the positions that actually cost you points.'],
 ]

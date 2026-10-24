@@ -134,7 +134,7 @@ export function style(set, m) {
     { label: 'Repertoire', left: 'Wide', right: 'Narrow', value: focus, note: `Top 3 openings are ${(focus * 100).toFixed(0)}% of your games` },
     { label: 'Appetite for a fight', left: 'Takes the draw', right: 'Plays on', value: 1 - Math.min(1, m.drawRate / 12), note: `${m.drawRate.toFixed(1)}% of games are drawn` },
   ]
-  if (m.e) meters.push({ label: 'Accuracy under fire', left: 'Volatile', right: 'Steady', value: Math.max(0, Math.min(1, 1 - m.e.err100 / 12)), note: `${m.e.err100.toFixed(1)} mistakes or blunders per 100 moves` })
+  if (m.e) meters.push({ label: 'Accuracy under fire', left: 'Volatile', right: 'Steady', value: Math.max(0, Math.min(1, 1 - m.e.err100 / 20)), note: `${m.e.err100.toFixed(1)} mistakes or blunders per 100 moves` })
   const e4 = white.filter(g => g.m1 === 'e4').length / (white.length || 1)
   const name = m.mateShare >= 28 && m.avgMoves < 34 ? 'Attacker' : m.avgMoves > 40 && m.mateShare < 20 ? 'Grinder' : m.drawRate > 8 ? 'Solid defender' : 'All-rounder'
   const why = [`${m.mateShare.toFixed(0)}% of your wins are checkmates`, `games last ${m.avgMoves.toFixed(0)} moves on average`]
@@ -170,7 +170,7 @@ export function engineReport(set, sm) {
   for (const color of ['w', 'b']) {
     const m = new Map()
     for (const r of rows) if (r.g.me === color && r.s.e10 != null && r.g.fam !== 'Unknown') (m.get(r.g.fam) || m.set(r.g.fam, []).get(r.g.fam)).push(r)
-    for (const [fam, x] of m) if (x.length >= 6) opens.push({ fam, color, n: x.length, e10: mean(x.map(r => r.s.e10)), acc: mean(x.map(r => r.s.acc)), score: (x.reduce((t, r) => t + r.g.score, 0) / x.length) * 100 })
+    for (const [fam, x] of m) if (x.length >= 6) opens.push({ fam, color, n: x.length, e10: mean(x.map(r => r.s.e10)), acc: mean(x.map(r => r.s.acc)), win: (x.filter(r => r.g.score === 1).length / x.length) * 100 })
   }
   opens.sort((a, b) => a.e10 - b.e10)
   const costly = rows.flatMap(r => r.s.errs.map(e => ({ g: r.g, i: e[0], loss: e[1], played: e[2], best: e[3] }))).sort((a, b) => b.loss - a.loss).slice(0, 12)

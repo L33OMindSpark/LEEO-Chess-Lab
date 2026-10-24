@@ -1,5 +1,5 @@
 import { esc, fmt } from './util.js'
-import { winPct } from './analyze.js'
+import { winPct, T } from './analyze.js'
 
 let tip
 function showTip(html, ev) {
@@ -63,7 +63,7 @@ export function barChart(el, items, { h = 190 } = {}) {
 export function evalGraph(el, a, J, cur, onSel) {
   const W = 640, H = 120, n = a.ev.length, X = i => (i / (n - 1 || 1)) * W, Y = i => H - (winPct(a.ev[i]) / 100) * H
   const line = a.ev.map((_, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(i).toFixed(1)).join('')
-  const dots = J.filter(m => m.loss >= 20).map(m => `<circle cx="${X(m.i + 1)}" cy="${Y(m.i + 1)}" r="3.5" fill="${m.loss >= 30 ? 'var(--loss)' : 'var(--warn)'}" stroke="var(--surface)" stroke-width="1.5"/>`).join('')
+  const dots = J.filter(m => m.loss >= T.ms).map(m => `<circle cx="${X(m.i + 1)}" cy="${Y(m.i + 1)}" r="3.5" fill="${m.loss >= T.bl ? 'var(--loss)' : 'var(--warn)'}" stroke="var(--surface)" stroke-width="1.5"/>`).join('')
   el.innerHTML = svg(W, H, `<rect width="${W}" height="${H}" fill="var(--graph-dark)"/><path d="${line}L${W} ${H}L0 ${H}Z" fill="var(--graph-light)"/><line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" stroke="var(--graph-mid)" stroke-dasharray="3 4"/>${dots}<line class="curline" x1="${X(cur)}" x2="${X(cur)}" y1="0" y2="${H}" stroke="var(--accent)" stroke-width="2"/>`, 'evalg')
   const s = el.querySelector('svg'), pick = ev => { const r = s.getBoundingClientRect(); onSel(Math.max(0, Math.min(n - 1, Math.round(((ev.clientX - r.left) / r.width) * (n - 1))))) }
   let down = false

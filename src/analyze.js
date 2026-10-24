@@ -2,7 +2,10 @@ import { Chess } from 'chess.js'
 import { mean } from './util.js'
 
 export const winPct = cp => 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1)
-export const moveAcc = loss => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * loss) - 3.1669))
+// Calibrated against chess.com's own accuracy on 32 of your reviewed games: the Lichess curve with a steeper slope lands within about 4 points per game.
+export const moveAcc = loss => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.115 * loss) - 3.1669))
+// chess.com's move classes, as win-chance points lost: inaccuracy 5, mistake 10, blunder 20.
+export const T = { ia: 5, ms: 10, bl: 20 }
 export const uciOf = m => m.from + m.to + (m.promotion || '')
 
 function phaseOf(fen, ply) {
@@ -47,7 +50,7 @@ export async function analyzeGame(g, pool, depth, tick) {
   return { v: 1, d: depth, ev, best, sans: p.sans.join(' '), ucis: p.ucis.join(' '), ph: p.ph, clk: p.clk }
 }
 
-export const CLASS = [['blunder', 30], ['mistake', 20], ['inaccuracy', 10]]
+export const CLASS = [['blunder', T.bl], ['mistake', T.ms], ['inaccuracy', T.ia]]
 
 // Per-move judgement of one analysed game. Index i = ply i (0 = White's first move).
 export function judge(a) {
@@ -83,7 +86,7 @@ export function myGame(g, a) {
   return {
     J, mine, acc: mean(mine.map(m => m.acc)),
     maxWin: post.length ? Math.max(...post) : 50, minWin: post.length ? Math.min(...post) : 50,
-    errors: mine.filter(m => m.loss >= 20),
+    errors: mine.filter(m => m.loss >= T.ms),
   }
 }
 
@@ -131,7 +134,7 @@ export function summarize(g, a) {
   const par = g.me === 'w' ? 0 : 1, opp = m.J.filter(x => x.i % 2 !== par)
   const per = k => [0, 1, 2].map(p => mine.filter(x => x.ph === p && x.cls === k).length)
   const timed = mine.filter(x => x.spent != null), sign = g.me === 'w' ? 1 : -1
-  const blunders = mine.filter(x => x.loss >= 30)
+  const blunders = mine.filter(x => x.loss >= T.bl)
   let fens = null
   try { const c = new Chess(); fens = [c.fen()]; for (const x of sans) { c.move(x); fens.push(c.fen()) } } catch {}
   const speed = x => (x.spent == null ? 'n' : x.pressure ? 'p' : x.spent < 3 ? 'f' : x.spent >= 15 ? 's' : 'n')
@@ -149,26 +152,26 @@ export function summarize(g, a) {
     }
     return sanPiece(sans[x.i]) + x.ph + speed(x) + state(x) + flags
   }
-  const first = mine.find(x => x.i < 24 && x.loss >= 10 && a.best[x.i])
+  const first = mine.find(x => x.i < 24 && x.loss >= T.ms && a.best[x.i])
   let fd = null
   if (first && fens) { try { const b = a.best[first.i], bs = new Chess(fens[first.i]).move({ from: b.slice(0, 2), to: b.slice(2, 4), promotion: b[4] }).san; fd = [first.i, Math.round(first.loss), sans[first.i], bs] } catch {} }
   return {
-    v: 3, d: a.d, acc: +m.acc.toFixed(1),
+    v: 4, d: a.d, acc: +m.acc.toFixed(1),
     mv: [0, 1, 2].map(p => mine.filter(x => x.ph === p).length), ia: per('inaccuracy'), ms: per('mistake'), bl: per('blunder'),
     mx: Math.round(m.maxWin), mn: Math.round(m.minWin),
-    ae: mine.filter(x => x.before >= 70 && x.loss >= 20).length,
-    pm: mine.filter(x => x.pressure).length, pe: mine.filter(x => x.pressure && x.loss >= 20).length,
-    cm: mine.filter(x => !x.pressure && x.spent != null).length, ce: mine.filter(x => !x.pressure && x.spent != null && x.loss >= 20).length,
+    ae: mine.filter(x => x.before >= 70 && x.loss >= T.ms).length,
+    pm: mine.filter(x => x.pressure).length, pe: mine.filter(x => x.pressure && x.loss >= T.ms).length,
+    cm: mine.filter(x => !x.pressure && x.spent != null).length, ce: mine.filter(x => !x.pressure && x.spent != null && x.loss >= T.ms).length,
     ts: Math.round(timed.reduce((t, x) => t + x.spent, 0)), tn: timed.length,
     bt: blunders.filter(x => x.spent != null).length, fb: blunders.filter(x => x.spent != null && x.spent < 3).length,
     e10: a.ev.length > 20 ? Math.round(winPct(sign * a.ev[20])) : null,
     oob: mine.length > 8 && mine[8].before < 40 ? 1 : 0,
-    errs: mine.filter(x => x.loss >= 20 && x.before >= 25 && a.best[x.i] && a.best[x.i] !== ucis[x.i]).map(x => [x.i, Math.round(x.loss), ucis[x.i], a.best[x.i], tag(x)]),
+    errs: mine.filter(x => x.loss >= T.ms && x.before >= 25 && a.best[x.i] && a.best[x.i] !== ucis[x.i]).map(x => [x.i, Math.round(x.loss), ucis[x.i], a.best[x.i], tag(x)]),
     // baselines for the pattern finder: how many of my moves fell in each kind of position
     bs: { pc: count(elig, x => PIECE.indexOf(sanPiece(sans[x.i])), 6), ph: count(elig, x => x.ph, 3), st: count(elig, x => 'ABE'.indexOf(state(x)) < 0 ? 2 : { A: 0, E: 1, B: 2 }[state(x)], 3), sp: count(elig, x => 'fpsn'.indexOf(speed(x)), 4) },
     // the opponent in the same games, for the peer comparison
     oa: +mean(opp.map(x => x.acc)).toFixed(1), omv: [0, 1, 2].map(p => opp.filter(x => x.ph === p).length),
-    oer: [0, 1, 2].map(p => opp.filter(x => x.ph === p && x.loss >= 20).length), obl: opp.filter(x => x.loss >= 30).length,
+    oer: [0, 1, 2].map(p => opp.filter(x => x.ph === p && x.loss >= T.ms).length), obl: opp.filter(x => x.loss >= T.bl).length,
     fd,
   }
 }

@@ -1,5 +1,6 @@
 import { S, analysedCount } from '../state.js'
-import { slice, metrics, horizons, ratingSeries, peer, habits } from '../stats.js'
+import { slice, metrics, horizons, ratingSeries, peer, habits, openings } from '../stats.js'
+import { wdlBar } from '../charts.js'
 import { doneToday, streak } from '../warmup.js'
 import { tips } from '../tips.js'
 import { lineChart, heatmap, radar } from '../charts.js'
@@ -47,11 +48,12 @@ export default function (root) {
   </div>
   ${coach}${strip}${cover}
   ${m.n === 0 ? `<div class="card"><p class="empty">No games in this selection. Pick a longer period or turn on more time controls.</p></div>` : `
-  <section class="sec"><div class="lead"><h2>Your level</h2><p>The average rating of the games in this selection, next to the rating chess.com shows now.</p></div>
-    <div class="levels">${Object.entries(m.byCls).map(([k, c]) => `<div class="level" style="--c:var(--c-${k})"><div class="name">${cap(k)}</div>
-        <div class="big num" data-count="${Math.round(c.avg)}">${fmt(c.avg)}</div><div class="muted">${now(k) ? `now ${now(k)}, ` : ''}${best(k) ? `best ${best(k)}` : `peak ${c.max}`}</div>
-        <div class="muted">${c.n} games, <span class="delta ${dcls(c.delta)}">${sign(c.delta)}</span> in range</div></div>`).join('')}
-      <div class="level"><div class="name">All games</div><div class="big num" data-count="${Math.round(m.avgMy)}">${fmt(m.avgMy)}</div><div class="muted">average rating</div><div class="muted">opponents averaged ${fmt(m.avgOpp)}</div></div></div></section>
+  <section class="sec"><div class="lead"><h2>Your level</h2><p>Your rating on chess.com right now, your record in this selection, and the average rating over it.</p></div>
+    <div class="levels">${Object.entries(m.byCls).map(([k, c]) => { const set = cur.filter(g => g.cls === k), w = set.filter(g => g.score === 1).length, d = set.filter(g => g.score === 0.5).length, l = set.length - w - d, big = now(k) || Math.round(c.avg)
+      return `<div class="level" style="--c:var(--c-${k})"><div class="name">${cap(k)} ${now(k) ? 'rating now' : 'average rating'}</div>
+        <div class="big num" data-count="${big}">${fmt(big)}</div><div class="muted">${best(k) ? `best ever ${best(k)}, ` : ''}average here ${fmt(c.avg)}</div>
+        <div class="muted"><b style="color:var(--ink)">${w}W ${l}L ${d}D</b> in ${c.n} games, <span class="delta ${dcls(c.delta)}">${sign(c.delta)}</span> rating in range</div></div>` }).join('')}
+      <div class="level"><div class="name">All games, average rating</div><div class="big num" data-count="${Math.round(m.avgMy)}">${fmt(m.avgMy)}</div><div class="muted">opponents averaged ${fmt(m.avgOpp)}</div><div class="muted">${fmt(m.n)} games, ${m.n ? ((m.o.w / m.n) * 100).toFixed(0) : 0}% won</div></div></div></section>
 
   <section class="sec"><div class="lead"><h2>Rating history</h2><p>Your rating after each game in this selection.</p></div><div class="card"><div id="rc"></div></div></section>
 
@@ -62,12 +64,15 @@ export default function (root) {
         <table>${verdict.parts.map(x => `<tr><td>${x.k}</td><td class="r delta ${dcls(x.d)}">${sign(x.d, x.k === 'Rating' ? 0 : 1)}${x.u}</td></tr>`).join('')}</table>`
         : `<p class="empty">${f.win ? 'Not enough games in both periods yet. It needs at least 5 in each.' : 'Choose 24 hours, 7 days, 30 days, 90 days or 12 months.'}</p>`}
     </div><div>
-      <div class="hz h"><span>Period</span><span class="r">Games</span><span class="r">Rating</span><span class="r">Score</span><span class="r">Accuracy</span><span>Trend</span></div>
+      <div class="hz h"><span>Period</span><span class="r">Games</span><span class="r">Rating</span><span class="r">Win rate</span><span class="r">Accuracy</span><span>Trend</span></div>
       ${hz.map(h => { const c = h.cur; return `<div class="hz"><span>${h.label.replace('Last ', '')}</span><span class="r">${c.n}</span>
-        <span class="r delta ${dcls(c.ratingDelta)}">${c.n ? sign(c.ratingDelta) : ''}</span><span class="r">${c.n ? c.score.toFixed(0) + '%' : ''}</span>
+        <span class="r delta ${dcls(c.ratingDelta)}">${c.n ? sign(c.ratingDelta) : ''}</span><span class="r">${c.n ? ((c.o.w / c.n) * 100).toFixed(0) + '%' : ''}</span>
         <span class="r">${c.acc != null ? c.acc.toFixed(1) + '%' : '<span class="faint">no data</span>'}</span>
         <span>${h.verdict ? `<span class="tag ${h.verdict.v > 1.5 ? 'up' : h.verdict.v < -1.5 ? 'down' : ''}">${h.verdict.label}</span>` : '<span class="faint">too few games</span>'}</span></div>` }).join('')}
     </div></div></section>
+
+  <section class="sec"><div class="lead"><h2>Your most played openings</h2><p>By games in this selection, with how you score. <a href="#/openings">All openings and the opening doctor</a></p></div>
+    <div class="grid geven">${[['w', 'As White'], ['b', 'As Black']].map(([c, t]) => `<div class="card"><h3 style="margin-bottom:10px">${t}</h3>${(rows => rows.length ? `<table><tbody>${rows.map(r => `<tr><td>${esc(r.fam)}</td><td class="r muted">${r.n}</td><td>${wdlBar(r)}</td><td class="r">${((r.w / r.n) * 100).toFixed(0)}% won</td></tr>`).join('')}</tbody></table>` : '<p class="empty">No games.</p>')(openings(cur, c).filter(r => r.fam !== 'Unknown').slice(0, 4))}</div>`).join('')}</div></section>
 
   <section class="sec"><div class="lead"><h2>Activity</h2><p>How often you played over the last year. Hover a day for the score.</p></div><div class="card"><div id="heat"></div></div></section>
 

@@ -2,13 +2,13 @@ import { Chessground } from 'chessground'
 import { Chess } from 'chess.js'
 import { S, analyseOne, getFull } from '../state.js'
 import { Engine } from '../engine.js'
-import { parseGame, fromAnalysis, judge, winPct } from '../analyze.js'
+import { parseGame, fromAnalysis, judge, winPct, T } from '../analyze.js'
 import { evalGraph } from '../charts.js'
 import { esc, dateStr } from '../util.js'
 import { HOW } from '../ui.js'
 import { WHY, allWhy, toggleWhy } from '../why.js'
 
-const MARK = m => (m.loss >= 30 ? '<span class="bl">??</span>' : m.loss >= 20 ? '<span class="ms">?</span>' : m.loss >= 10 ? '<span class="ia">?!</span>' : '')
+const MARK = m => (m.loss >= T.bl ? '<span class="bl">??</span>' : m.loss >= T.ms ? '<span class="ms">?</span>' : m.loss >= T.ia ? '<span class="ia">?!</span>' : '')
 const evText = l => (l.mate != null ? `M${Math.abs(l.mate)}` : (l.cp > 0 ? '+' : '') + (l.cp / 100).toFixed(2))
 
 function sanLine(fen, pv) {

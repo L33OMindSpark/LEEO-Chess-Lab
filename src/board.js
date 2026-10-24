@@ -2,7 +2,7 @@
 import { Chessground } from 'chessground'
 import { Chess } from 'chess.js'
 import demo from './demo.json'
-import { judge, winPct } from './analyze.js'
+import { judge, winPct, T } from './analyze.js'
 import { esc } from './util.js'
 
 const fens = (() => { const c = new Chess(), out = [c.fen()]; demo.sans.forEach(s => { c.move(s); out.push(c.fen()) }); return out })()
@@ -11,7 +11,7 @@ export const worst = J.reduce((b, m, i) => (m.loss > J[b].loss && demo.ev[i + 1]
 export const bestSan = i => { try { const u = demo.best[i], c = new Chess(fens[i]); return c.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }).san } catch { return '' } }
 export const demoFen = i => fens[i]
 export const demoSan = i => demo.sans[i]
-const ann = m => (m.loss >= 30 ? ['bl', '??'] : m.loss >= 20 ? ['ms', '?'] : m.loss >= 10 ? ['ms', '?!'] : null)
+const ann = m => (m.loss >= T.bl ? ['bl', '??'] : m.loss >= T.ms ? ['ms', '?'] : m.loss >= T.ia ? ['ms', '?!'] : null)
 const evTxt = cp => (Math.abs(cp) > 5000 ? 'Mate' : (cp > 0 ? '+' : '') + (cp / 100).toFixed(1))
 const sqPos = sq => `left:${(sq.charCodeAt(0) - 97) * 12.5}%;top:${(8 - +sq[1]) * 12.5}%`
 const move = (i) => `${i % 2 ? '' : i / 2 + 1 + '.'}${demo.sans[i]}`
@@ -40,7 +40,7 @@ export function createStage(el, { ribbon = true, caption = true } = {}) {
       cap.querySelector('.capsay').textContent = o.say ?? (!p ? 'Morphy against the Duke of Brunswick and Count Isouard, Paris 1858.' : a ? `Costs ${m.loss.toFixed(0)}% of the win chance. Stockfish preferred ${bestSan(p - 1)}.` : m.cls === 'best' ? 'The engine’s first choice.' : 'A sound move.')
     }
   }
-  const step = () => { goto(ply >= demo.sans.length ? 0 : ply + 1); timer = setTimeout(step, ply >= demo.sans.length ? 3200 : J[ply - 1] && J[ply - 1].loss >= 20 ? 2100 : 1050) }
+  const step = () => { goto(ply >= demo.sans.length ? 0 : ply + 1); timer = setTimeout(step, ply >= demo.sans.length ? 3200 : J[ply - 1] && J[ply - 1].loss >= T.ms ? 2100 : 1050) }
   const api = {
     goto,
     play() { if (!playing) { playing = true; timer = setTimeout(step, 700) } },

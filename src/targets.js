@@ -47,7 +47,7 @@ export function suggestions(games, sm, have) {
     const base = METRICS[k].get(metrics(set, sm))
     if (base == null) continue
     const m = METRICS[k]
-    const bad = k === 'fast' ? base > 30 : k === 'blunder' ? base > 1 : k === 'pressure' ? base > 4 : k === 'convert' ? base < 85 : k === 'timeout' ? base > 12 : base < 90
+    const bad = k === 'fast' ? base > 30 : k === 'blunder' ? base > 2.5 : k === 'pressure' ? base > 8 : k === 'convert' ? base < 85 : k === 'timeout' ? base > 12 : base < 90
     if (!bad) continue
     const goal = m.low ? base * 0.7 : k === 'accuracy' ? base + 2 : Math.min(98, base + (100 - base) * 0.35)
     out.push({ key: k, base: +base.toFixed(2), goal: +goal.toFixed(m.dec || 0 ? 1 : 0) })

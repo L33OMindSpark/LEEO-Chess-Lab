@@ -16,7 +16,7 @@ A login plus background analysis (free Supabase, GitHub Actions and Cloudflare) 
 - Games come from the free public chess.com API. Each month is cached in the browser, so repeat visits are instant.
 - In the browser, the newest 500 games can be analysed straight away and the whole history can be analysed month by month (slow). A tracked account analyses the entire history on a server. Every analysed game is reduced to a small summary that all statistics are built from, and the full move-by-move record is loaded only when you open a game.
 - Stockfish 19 (lite, WASM) runs in background workers. Results are saved per game and the batch can be stopped and resumed.
-- Tips are plain rules over your own numbers. Accuracy and mistake classes follow the Lichess win-chance model.
+- Tips are plain rules over your own numbers. Move classes follow chess.com's published lines (5, 10 and 20 win-chance points for inaccuracy, mistake and blunder). Accuracy uses the Lichess curve with its slope calibrated against chess.com's own accuracy on your reviewed games, so it lands within a few points per game but is not identical.
 - Settings menu: engine depth, how much history to read, and deleting saved data.
 
 macOS may block `start.command` the first time: right-click, Open. If a downloaded copy is blocked, run `xattr -cr` on the folder.

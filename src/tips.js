@@ -60,14 +60,14 @@ export function tips(set, m) {
   if (e && e.moves > 300) {
     const names = ['opening', 'middlegame', 'endgame']
     const worst = e.phRate.map((r, i) => [r, i]).filter(([, i]) => e.ph[i].n > 80).sort((a, b) => b[0] - a[0])[0]
-    if (worst && worst[0] > 6) add('Engine', 6 + worst[0] / 4, `Most of your errors happen in the ${names[worst[1]]}`,
+    if (worst && worst[0] > 8) add('Engine', 6 + worst[0] / 5, `Most of your errors happen in the ${names[worst[1]]}`,
       `A mistake or blunder on ${worst[0].toFixed(1)}% of your ${names[worst[1]]} moves (${e.ph[worst[1]].err} in ${e.ph[worst[1]].n}).`,
       ['Learn the plans, not only the moves, of your 2 main openings.', 'Before each move list the opponent threats and your loose pieces. Slow down in complex positions.', 'Work through basic endgames: king and pawn, rook endgames, and Lucena and Philidor.'][worst[1]])
     if (e.winGames >= 8 && e.converted / e.winGames < 0.75) add('Engine', 8, 'You let winning positions slip', `In ${e.winGames} analysed games you were clearly winning at some point. You won only ${e.converted} (${p0(e.converted / e.winGames * 100)}%).`, 'When ahead: trade pieces, remove counterplay, and spend your time on safety before looking for the knockout.')
     if (e.lostGames >= 8 && e.saved / e.lostGames > 0.25) add('Engine', 2, 'You fight back from bad positions', `You saved ${e.saved} of ${e.lostGames} games where you were clearly worse (${p0(e.saved / e.lostGames * 100)}%).`, 'That resilience is a real strength. Use it in the opening too and avoid getting into those positions.')
     if (e.aheadErr > 10) add('Engine', 5, 'Blunders come when you are already ahead', `${e.aheadErr} of your mistakes or blunders were made from a position with a 70% or better chance to win.`, 'Once you are ahead, play the safest move that keeps the advantage. Stop calculating long lines.')
     if (e.blundersTimed >= 15 && e.fastBlunders / e.blundersTimed > 0.4) add('Time', 6, 'Many blunders are played in seconds', `${p0(e.fastBlunders / e.blundersTimed * 100)}% of your blunders (${e.fastBlunders} of ${e.blundersTimed}) were played in under 3 seconds.`, 'Add one checkpoint before every move: what does their last move threaten, and is my move safe? Even two seconds removes most of these.')
-    if (e.per100 > 3) add('Tactics', 7, 'Blunders are your biggest leak', `You blunder (lose 30% win chance or more) once every ${p0(100 / e.per100)} moves.`, 'Use the blunder trainer on this site daily. Fifteen positions from your own games are worth more than random puzzles.')
+    if (e.per100 > 3) add('Tactics', 7, 'Blunders are your biggest leak', `You blunder (lose 20% win chance or more, the same line chess.com uses) once every ${p0(100 / e.per100)} moves.`, 'Use the blunder trainer on this site daily. Fifteen positions from your own games are worth more than random puzzles.')
   }
   return out.sort((a, b) => b.sev - a.sev)
 }
