@@ -1,0 +1,40 @@
+# The background engine. Every 30 minutes it looks for chess.com accounts added on the site,
+# reads their games, runs Stockfish and saves the results to Supabase. Free on a public repository.
+# Repository secrets needed (see GO-LIVE.md): SUPABASE_URL, SUPABASE_ANON_KEY, WORKER_SECRET
+name: Analyse chess accounts
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: analyse
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  analyse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Stockfish and the two small libraries the job needs
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq stockfish
+          npm ci --omit=dev
+      - name: Analyse
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+          STOCKFISH_CMD: /usr/games/stockfish
+          MAX_MINUTES: "45"
+          THREADS: "3"
+        run: node worker/run.mjs

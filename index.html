@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LEEO Chess Lab</title>
+<meta name="description" content="Analyse every game from a chess.com account with Stockfish: level, playstyle, openings, habits and a personal improvement trend.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Spectral:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/"><b>LEEO</b> Chess Lab</a>
+  <nav>
+    <div class="dd"><button>Insights</button><div class="menu"><a href="#/overview">Overview</a><a href="#/style">Playstyle and tips</a><a href="#/openings">Openings</a><a href="#/habits">Habits</a></div></div>
+    <div class="dd"><button>Games</button><div class="menu"><a href="#/games">All games</a></div></div>
+    <div class="dd"><button>Train</button><div class="menu"><a href="#/train">Blunder trainer</a></div></div>
+    <div class="dd" id="ddcloud" hidden><button>Account</button><div class="menu"><a href="#/accounts">My accounts</a><a href="#/login" id="sign">Sign in</a></div></div>
+    <div class="dd"><button>Settings</button><div class="menu wide">
+      <label>Engine depth<select id="depth"><option value="10">10, fast</option><option value="12">12, balanced</option><option value="14">14, deeper</option><option value="16">16, slow</option></select></label>
+      <label>History to read<select id="since"><option value="">Everything</option><option value="2y">Last 2 years</option><option value="1y">Last year</option></select></label>
+      <button id="clear" class="linkish">Delete saved data on this computer</button>
+    </div></div>
+  </nav>
+  <form id="uform" autocomplete="off"><input id="uname" placeholder="chess.com username" aria-label="chess.com username" spellcheck="false"><button class="btn primary">Analyse</button></form>
+</header>
+<main id="app"></main>
+<div id="job" hidden></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
