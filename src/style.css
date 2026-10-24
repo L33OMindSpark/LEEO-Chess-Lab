@@ -200,6 +200,7 @@ tbody tr.click{cursor:pointer}tbody tr.click:hover{background:var(--accent-soft)
 .game{position:relative;display:grid;grid-template-columns:5px 74px minmax(0,1.3fr) minmax(0,1.5fr) 110px 56px 100px;gap:18px;align-items:center;padding:14px 18px 14px 0;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;text-decoration:none;color:var(--ink);transition:transform .25s var(--ease),box-shadow .25s,border-color .25s;overflow:hidden}
 .game:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--line2)}
 .game .stripe{align-self:stretch;margin:-14px 0}
+.game.costly{grid-template-columns:5px 74px minmax(0,1fr) 110px 90px}
 .game .stripe.w{background:var(--win)}.game .stripe.l{background:var(--loss)}.game .stripe.d{background:var(--draw)}
 .game .when{font-size:.85rem;color:var(--muted)}
 .game .opp b{font-weight:600}.game .opp span,.game .op span{color:var(--muted);font-size:.88rem}
@@ -339,3 +340,10 @@ body[data-route=login] .top{background:var(--bg);border-color:var(--line)}
 .hbar .hb{height:10px;border-radius:5px;background:var(--line);overflow:hidden}.hbar .hb i{display:block;height:100%;border-radius:5px;background:var(--accent);transition:width 1s var(--ease)}
 .hbar b{font-weight:500;font-size:.9rem;color:var(--muted)}
 @media(max-width:700px){.hbar{grid-template-columns:90px 1fr}.hbar b{grid-column:1/-1}}
+.since.warn{background:color-mix(in srgb,var(--warn) 16%,transparent)}
+
+.card,.panel{overflow-x:auto}
+@media(max-width:700px){.sec td:first-child,.panel td:first-child,.card td:first-child{white-space:normal}.sec td,.sec th{padding-left:6px;padding-right:6px}}
+
+body{overflow-x:clip}
+@media(max-width:1000px){.game.costly{grid-template-columns:5px minmax(0,1fr) 70px}}

@@ -95,6 +95,31 @@ export function fromAnalysis(a) {
 }
 
 const PIECE = 'PNBRQK'
+const VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
+
+// Which tactic was on the board: flags f free piece, x fork, k mate, p promotion, m missed capture.
+export function bestMotifs(fen, bestUci) {
+  let out = ''
+  try {
+    const c = new Chess(fen), me = c.turn(), opp = me === 'w' ? 'b' : 'w'
+    const bm = c.moves({ verbose: true }).find(k => uci(k) === bestUci)
+    if (!bm) return out
+    if (bm.captured && (VAL[bm.captured] >= 3 && (c.attackers(bm.to, opp).length === 0 || VAL[bm.captured] > VAL[bm.piece]))) out += 'f'
+    else if (bm.captured) out += 'm'
+    if (bm.promotion) out += 'p'
+    c.move(bm)
+    if (c.isCheckmate()) out += 'k'
+    else {
+      let n = 0
+      for (const row of c.board()) for (const q of row) {
+        if (!q || q.color !== opp || (VAL[q.type] < 3 && q.type !== 'k')) continue
+        if (c.attackers(q.square, me).includes(bm.to) && (q.type === 'k' || VAL[q.type] > VAL[bm.piece] || c.attackers(q.square, opp).length === 0)) n++
+      }
+      if (n >= 2) out += 'x'
+    }
+  } catch {}
+  return out
+}
 const sanPiece = san => (san[0] === 'O' ? 'K' : /[NBRQK]/.test(san[0]) ? san[0] : 'P')
 const uci = m => m.from + m.to + (m.promotion || '')
 
@@ -118,10 +143,9 @@ export function summarize(g, a) {
     if (fens) {
       try {
         const nxt = new Chess(fens[x.i + 1]).moves({ verbose: true }).find(k => uci(k) === a.best[x.i + 1])
-        if (nxt?.captured) flags += 'h'
-        const bm = new Chess(fens[x.i]).moves({ verbose: true }).find(k => uci(k) === a.best[x.i])
-        if (bm?.captured && !sans[x.i].includes('x')) flags += 'm'
+        if (nxt?.captured && VAL[nxt.captured] >= 3) flags += 'h'
       } catch {}
+      flags += bestMotifs(fens[x.i], a.best[x.i]).replace('m', sans[x.i].includes('x') ? '' : 'm')
     }
     return sanPiece(sans[x.i]) + x.ph + speed(x) + state(x) + flags
   }
@@ -129,7 +153,7 @@ export function summarize(g, a) {
   let fd = null
   if (first && fens) { try { const b = a.best[first.i], bs = new Chess(fens[first.i]).move({ from: b.slice(0, 2), to: b.slice(2, 4), promotion: b[4] }).san; fd = [first.i, Math.round(first.loss), sans[first.i], bs] } catch {} }
   return {
-    v: 2, d: a.d, acc: +m.acc.toFixed(1),
+    v: 3, d: a.d, acc: +m.acc.toFixed(1),
     mv: [0, 1, 2].map(p => mine.filter(x => x.ph === p).length), ia: per('inaccuracy'), ms: per('mistake'), bl: per('blunder'),
     mx: Math.round(m.maxWin), mn: Math.round(m.minWin),
     ae: mine.filter(x => x.before >= 70 && x.loss >= 20).length,

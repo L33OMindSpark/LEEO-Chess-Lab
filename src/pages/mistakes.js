@@ -3,6 +3,7 @@ import { slice, patterns } from '../stats.js'
 import { esc, fmt } from '../util.js'
 import { filterHTML, bindFilter, winLabel } from '../ui.js'
 import { WHY, allWhy } from '../why.js'
+import { MOTIF } from '../motifs.js'
 
 export const refresh = true
 
@@ -17,10 +18,11 @@ export default function (root) {
     ${hot.length ? hot.map(c => `<div class="tipcard" style="grid-template-columns:80px 1fr"><span class="area" style="font-size:1.1rem">${c.lift.toFixed(1)}x</span><h3>More errors on ${esc(c.label)}</h3>
       <div>${c.errs} of your ${fmt(P.total)} errors (${(c.eShare * 100).toFixed(0)}%) came on ${esc(c.label)}, which are only ${(c.mShare * 100).toFixed(0)}% of your moves.</div>
       <div><button class="btn small primary" data-train="${c.dim}:${c.idx}:${esc(c.label)}">Train these positions</button></div></div>`).join('') : '<p class="empty">No kind of position stands out. Your errors are spread evenly.</p>'}
-    <table style="margin-top:18px"><tbody><tr><td>Errors that gave material away</td><td class="r">${P.hung} (${((P.hung / P.total) * 100).toFixed(0)}%)</td></tr><tr><td>Errors that missed a capture</td><td class="r">${P.missed} (${((P.missed / P.total) * 100).toFixed(0)}%)</td></tr></tbody></table></div></section>
+</div></section>
+  <section class="sec"><div class="lead"><h2>The tactic behind it</h2><p>What was on the board when you went wrong, found by checking the engine's move and the reply to yours.</p></div><div class="card">${P.motifs.filter(x => x.n).sort((a, b) => b.n - a.n).map(x => `<div class="hbar"><span style="min-width:0">${MOTIF[x.k]}</span><div class="hb"><i style="width:${(x.n / P.total) * 100}%"></i></div><b>${x.n} errors (${((x.n / P.total) * 100).toFixed(0)}%) ${x.n >= 5 ? `<a href="#/train" data-train="fl:${'hfxkpm'.indexOf(x.k)}:${esc(MOTIF[x.k])}">Train</a>` : ''}</b></div>`).join('') || '<p class="empty">No tactic pattern found yet.</p>'}</div></section>
   ${P.opens.length ? `<section class="sec"><div class="lead"><h2>Openings with the most errors</h2><p>Errors per game, with at least 6 analysed games. Your average is ${P.avg.toFixed(1)}.</p></div><div class="card"><table><tbody>${P.opens.map(o => `<tr><td>${esc(o.fam)}</td><td class="r muted">${o.n} games</td><td class="r"><b class="${o.per > P.avg * 1.25 ? 'bl' : ''}">${o.per.toFixed(1)}</b></td></tr>`).join('')}</tbody></table></div></section>` : ''}`}
   <section class="sec"><div class="lead"><h2>Why you lose</h2><p>Your own reasons, tagged on a lost game while you review it. The engine cannot know these.</p></div><div class="card">
     ${tagged.length ? WHY.filter(([k]) => counts[k]).sort((a, b) => counts[b[0]] - counts[a[0]]).map(([k, l]) => `<div class="hbar"><span style="min-width:0">${l}</span><div class="hb"><i style="width:${(counts[k] / tagged.length) * 100}%"></i></div><b>${counts[k]} of ${tagged.length} tagged games</b></div>`).join('') : '<p class="empty">Nothing tagged yet. Open a lost game from <a href="#/games">Game history</a> and choose what went wrong.</p>'}</div></section>`
   bindFilter(root, () => root.dispatchEvent(new Event('rerender')))
-  root.querySelectorAll('[data-train]').forEach(b => (b.onclick = () => { const [dim, idx, label] = b.dataset.train.split(':'); S.trainFilter = { dim, idx: +idx, label }; location.hash = '#/train' }))
+  root.querySelectorAll('[data-train]').forEach(b => (b.onclick = e => { e.preventDefault(); const [dim, idx, label] = b.dataset.train.split(':'); S.trainFilter = { dim, idx: +idx, label }; location.hash = '#/train' }))
 }

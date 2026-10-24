@@ -33,6 +33,25 @@ create table if not exists public.analyses (
 );
 alter table public.analyses add column if not exists summary jsonb not null default '{}';
 
+-- trainer progress, "why I lost" tags and targets, so they follow you between devices
+create table if not exists public.user_data (
+  account_id uuid not null references public.tracked_accounts(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  k text not null check (k in ('sr', 'why', 'targets', 'warmup', 'goal')),
+  v jsonb not null check (pg_column_size(v) < 1000000),
+  updated_at timestamptz not null default now(),
+  primary key (account_id, k)
+);
+alter table public.user_data enable row level security;
+drop policy if exists ud_all on public.user_data;
+create policy ud_all on public.user_data for all to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid() and exists (select 1 from public.tracked_accounts a where a.id = account_id and a.user_id = auth.uid()));
+revoke all on public.user_data from anon, authenticated;
+grant select, delete on public.user_data to authenticated;
+grant insert (account_id, k, v, updated_at) on public.user_data to authenticated;
+grant update (account_id, k, v, updated_at) on public.user_data to authenticated;
+
 -- holds the sha256 of the worker secret; no policies, so nobody can read it through the API
 create table if not exists public.worker_key (h text not null);
 

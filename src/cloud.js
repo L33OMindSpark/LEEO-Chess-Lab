@@ -22,7 +22,7 @@ export async function logout() {
   save(null)
 }
 
-async function api(path, { method = 'GET', body, prefer } = {}) {
+export async function api(path, { method = 'GET', body, prefer } = {}) {
   if (!session) throw new Error('Sign in first.')
   if (session.exp - Date.now() < 60000) await auth('refresh_token', { refresh_token: session.refresh }).catch(() => save(null))
   if (!session) throw new Error('Your session ended. Sign in again.')
@@ -60,3 +60,6 @@ export async function loadFull(accountId, gameId) {
   const r = await api(`analyses?account_id=eq.${accountId}&game_id=eq.${encodeURIComponent(gameId)}&select=data`)
   return r[0]?.data || null
 }
+
+export const getData = accountId => api(`user_data?account_id=eq.${accountId}&select=k,v,updated_at`)
+export const putData = (accountId, k, v) => api('user_data?on_conflict=account_id,k', { method: 'POST', body: { account_id: accountId, k, v, updated_at: new Date().toISOString() }, prefer: 'resolution=merge-duplicates,return=minimal' })

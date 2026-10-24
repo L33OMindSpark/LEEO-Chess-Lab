@@ -41,7 +41,7 @@ export default function (root) {
       </tbody></table><p class="sub" style="margin:12px 0 0">Sorted from the weakest. Openings with at least 6 analysed games.</p>` : '<p class="empty">Needs at least 6 analysed games in an opening.</p>'}</div></section>
 
   <section class="sec"><div class="lead"><h2>Your costliest moments</h2><p>The moves that gave away the most winning chances. Open one to see the position and what the engine wanted.</p></div>
-    <div>${R.costly.map(c => `<a class="game" href="#/review/${c.g.id}" style="grid-template-columns:5px 74px 1fr 110px 90px"><i class="stripe ${c.g.score === 1 ? 'w' : c.g.score === 0 ? 'l' : 'd'}"></i>
+    <div>${R.costly.map(c => `<a class="game costly" href="#/review/${c.g.id}"><i class="stripe ${c.g.score === 1 ? 'w' : c.g.score === 0 ? 'l' : 'd'}"></i>
       <div class="when"><b style="color:var(--ink)">${dateStr(c.g.t).replace(/ \d{4}$/, '')}</b><br>${cap(c.g.cls)}</div><div class="opp"><b>vs ${esc(c.g.oppName)}</b> <span>${c.g.opp}</span><br><span>${esc(c.g.name)}</span></div>
       <div class="mono"><b class="bl">-${c.loss}%</b></div><span class="go">Review</span></a>`).join('') || '<p class="empty">No costly moments recorded.</p>'}</div></section>`
   })()}`

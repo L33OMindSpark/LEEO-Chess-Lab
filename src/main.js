@@ -4,6 +4,7 @@ import 'chessground/assets/chessground.cburnett.css'
 import { S, emit, loadAnalyses, stopBatch } from './state.js'
 import { getProfile, getStats, loadGames } from './api.js'
 import * as cloud from './cloud.js'
+import { pull } from './sync.js'
 import { $, esc, sleep, kvClear } from './util.js'
 import { enhance, initScroll } from './fx.js'
 import home from './pages/home.js'
@@ -93,6 +94,7 @@ async function openCloud(acc) {
   try {
     const [data, p, st] = await Promise.all([cloud.loadAccountData(acc), getProfile(acc.chess_username).catch(() => null), getStats(acc.chess_username).catch(() => null)])
     Object.assign(S, { user: acc.chess_username, cloud: acc, profile: p, stats: st, games: data.games, sm: data.sm, an: {} })
+    await pull()
     pickWindow(); visit()
     location.hash = '#/overview'
     render()
@@ -128,7 +130,7 @@ async function render(mode = 'nav') {
   else if (route === 'login') { current = null; loginPage(app, ctx, h => (location.hash = h)) }
   else if (route === 'accounts') { current = null; accountsPage(app, ctx, openCloud) }
   else if (route === 'review') { current = {}; await (await import('./pages/review.js')).default(app, ctx, arg) }
-  else if (route === 'train') { current = {}; (await import('./pages/train.js')).default(app, ctx) }
+  else if (route === 'train') { current = {}; (await import('./pages/train.js')).default(app, ctx, arg) }
   else { const [fn, mod] = pages[route]; current = mod; fn(app, ctx) }
   if (my !== token) return
   if (mode === 'nav') { app.classList.remove('in'); void app.offsetWidth; app.classList.add('in'); if (!firstRender) scrollTo(0, 0) }

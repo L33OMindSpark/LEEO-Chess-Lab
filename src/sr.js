@@ -1,16 +1,15 @@
-import { S } from './state.js'
+import { read, write } from './sync.js'
 
 // Spaced repetition for missed positions: solve one first try and it comes back later, miss it and it comes back soon.
 const DAY = 86400000, GAPS = [0, 1, 3, 7, 21, 60].map(d => d * DAY)
-const key = () => `sr:${S.user}`
-const load = () => { try { return JSON.parse(localStorage[key()] || '{}') } catch { return {} } }
+const load = () => read('sr', {})
 export const puzzleId = it => `${it.g.id}:${it.i}`
 
 export function record(id, solvedFirstTry) {
   const all = load(), cur = all[id] || { box: 0 }
   const box = solvedFirstTry ? Math.min(5, cur.box + 1) : 0
-  all[id] = { box, due: Date.now() + (solvedFirstTry ? GAPS[box] : 10 * 60000) }
-  localStorage[key()] = JSON.stringify(all)
+  all[id] = { box, due: Date.now() + (solvedFirstTry ? GAPS[box] : 10 * 60000), t: Date.now() }
+  write('sr', all)
 }
 
 export function queue(items) {

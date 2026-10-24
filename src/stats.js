@@ -227,12 +227,12 @@ export function patterns(set, sm) {
     })
   }
   cells.sort((a, b) => b.lift - a.lift)
-  const flag = f => errs.filter(e => e.tag.includes(f)).length
+  const flag = f => errs.filter(e => e.tag.slice(4).includes(f)).length
   const byOpen = new Map()
   rows.forEach(r => { const o = byOpen.get(r.g.fam) || { n: 0, e: 0 }; o.n++; o.e += r.s.errs.length; byOpen.set(r.g.fam, o) })
   const avg = errs.length / rows.length
   const opens = [...byOpen].filter(([f, o]) => o.n >= 6 && f !== 'Unknown').map(([fam, o]) => ({ fam, n: o.n, per: o.e / o.n })).sort((a, b) => b.per - a.per).slice(0, 5)
-  return { total: errs.length, games: rows.length, cells, hung: flag('h'), missed: flag('m'), opens, avg }
+  return { total: errs.length, games: rows.length, cells, motifs: ['h', 'f', 'x', 'k', 'p', 'm'].map(k => ({ k, n: flag(k) })), opens, avg }
 }
 
 // ---------- opening doctor: where your openings keep going wrong ----------

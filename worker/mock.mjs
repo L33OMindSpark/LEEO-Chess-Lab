@@ -4,7 +4,7 @@ import http from 'node:http'
 import { randomUUID } from 'node:crypto'
 
 export function startMock(port = 54321) {
-  const db = { accounts: [], months: {}, analyses: {} }
+  const db = { accounts: [], months: {}, analyses: {}, data: [] }
   const send = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' }); res.end(body === undefined ? '' : JSON.stringify(body)) }
   const server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return send(res, 204)
@@ -22,6 +22,10 @@ export function startMock(port = 54321) {
       if (req.method === 'POST') { const a = { id: randomUUID(), chess_username: body.chess_username, status: 'pending', games_total: 0, analysed: 0, analysis_target: 0, depth: body.depth || 14, last_error: null, refreshed_at: null, created_at: new Date().toISOString() }; db.accounts.push(a); return send(res, 201, [a]) }
       if (req.method === 'PATCH') { db.accounts.filter(a => a.id === eq('id')).forEach(a => Object.assign(a, body)); return send(res, 204) }
       if (req.method === 'DELETE') { db.accounts = db.accounts.filter(a => a.id !== eq('id')); return send(res, 204) }
+    }
+    if (p === '/rest/v1/user_data') {
+      if (req.method === 'GET') return send(res, 200, db.data.filter(r => r.account_id === eq('account_id')))
+      if (req.method === 'POST') { const i = db.data.findIndex(r => r.account_id === body.account_id && r.k === body.k); i >= 0 ? (db.data[i] = body) : db.data.push(body); return send(res, 201) }
     }
     if (p === '/rest/v1/games_months') return send(res, 200, Object.entries(db.months[eq('account_id')] || {}).map(([ym, data]) => ({ ym, data })))
     if (p === '/rest/v1/analyses') {

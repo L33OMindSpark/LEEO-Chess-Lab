@@ -1,5 +1,6 @@
 import { S, analysedCount } from '../state.js'
-import { slice, metrics, horizons, ratingSeries, peer } from '../stats.js'
+import { slice, metrics, horizons, ratingSeries, peer, habits } from '../stats.js'
+import { doneToday, streak } from '../warmup.js'
 import { tips } from '../tips.js'
 import { lineChart, heatmap, radar } from '../charts.js'
 import { esc, fmt } from '../util.js'
@@ -22,7 +23,20 @@ export default function (root) {
   // this week, or what changed since the last visit, plus the one thing to focus on
   const wk = metrics(slice(S.games, { win: 7, classes: f.classes }), S.sm), recent = S.lastVisit && Date.now() - S.lastVisit > 3600000 ? S.games.filter(g => g.t * 1000 > S.lastVisit && f.classes.has(g.cls)) : null
   const dg = recent?.length ? metrics(recent, S.sm) : wk, head = recent?.length ? `Since your last visit ${ago(Date.now() - S.lastVisit)}` : 'This week'
-  const strip = dg.n ? `<div class="since"><span class="muted">${head}</span><span><b>${dg.n}</b> games</span><span><b class="delta ${dcls(dg.ratingDelta)}">${sign(dg.ratingDelta)}</b> rating</span><span><b>${dg.score.toFixed(0)}%</b> score</span>${dg.acc != null ? `<span><b>${dg.acc.toFixed(0)}%</b> accuracy</span>` : ''}${tp[0] ? `<span style="flex-basis:100%;margin-top:4px">Focus: <b style="font-size:1.05rem">${esc(tp[0].title)}</b> <a href="#/style">Why and what to do</a></span>` : ''}</div>` : ''
+  // session coach: tells you to stop when your own numbers say you tilt
+  const coach = (() => {
+    const now = Date.now() / 1000, rec = S.games.filter(g => g.t > now - 4 * 3600).sort((a, b) => b.t - a.t)
+    if (!rec[0] || now - rec[0].t > 5400) return ''
+    let l = 0, prev = rec[0].t
+    for (const g of rec) { if (prev - g.t > 2400 || g.score !== 0) break; l++; prev = g.t }
+    if (l < 2) return ''
+    const t = habits(S.games.filter(g => g.t > now - 365 * 86400)).tilt, mine = metrics(S.games.filter(g => g.t > now - 365 * 86400), S.sm).score
+    const x = t.nTwo >= 10 ? t.afterTwo : t.nLoss >= 20 ? t.afterLoss : null
+    return `<div class="since warn"><span><b>You have lost your last ${l} games.</b>${x != null && x < mine - 4 ? ` After losses like this your score is ${x.toFixed(0)}%, against ${mine.toFixed(0)}% normally.` : ''} A short break usually costs less than the next game.</span></div>`
+  })()
+  const hasPuzzles = S.games.some(g => S.sm[g.id]?.errs?.length)
+  const warmRow = hasPuzzles ? `<span style="flex-basis:100%;margin-top:4px">Daily warm-up: <a href="#/train/warmup">${doneToday() ? 'done today, go again' : 'five puzzles from your own mistakes'}</a>${streak() ? `, ${streak()} day streak` : ''}</span>` : ''
+  const strip = dg.n || warmRow ? `<div class="since">${dg.n ? `<span class="muted">${head}</span><span><b>${dg.n}</b> games</span><span><b class="delta ${dcls(dg.ratingDelta)}">${sign(dg.ratingDelta)}</b> rating</span><span><b>${dg.score.toFixed(0)}%</b> score</span>${dg.acc != null ? `<span><b>${dg.acc.toFixed(0)}%</b> accuracy</span>` : ''}` : ''}${tp[0] ? `<span style="flex-basis:100%;margin-top:4px">Focus: <b style="font-size:1.05rem">${esc(tp[0].title)}</b> <a href="#/style">Why and what to do</a></span>` : ''}${warmRow}</div>` : ''
   const cover = analysedCount() < total * 0.98 ? `<p class="muted" style="margin:-12px 0 26px;font-size:.92rem">Stockfish has analysed ${((analysedCount() / total) * 100).toFixed(analysedCount() ? 1 : 0)}% of your games. <a href="#/engine">${S.cloud ? 'See the progress' : 'Analyse more'}</a></p>` : ''
 
   root.innerHTML = `
@@ -31,7 +45,7 @@ export default function (root) {
       <p>${fmt(S.games.length)} games read${p.joined ? `, playing since ${new Date(p.joined * 1000).getFullYear()}` : ''}. Showing ${winLabel()}.</p></div></div>
     ${filterHTML()}
   </div>
-  ${strip}${cover}
+  ${coach}${strip}${cover}
   ${m.n === 0 ? `<div class="card"><p class="empty">No games in this selection. Pick a longer period or turn on more time controls.</p></div>` : `
   <section class="sec"><div class="lead"><h2>Your level</h2><p>The average rating of the games in this selection, next to the rating chess.com shows now.</p></div>
     <div class="levels">${Object.entries(m.byCls).map(([k, c]) => `<div class="level" style="--c:var(--c-${k})"><div class="name">${cap(k)}</div>
