@@ -12,13 +12,14 @@ import style, * as stMod from './pages/style.js'
 import openings from './pages/openings.js'
 import habits, * as hbMod from './pages/habits.js'
 import engine, * as enMod from './pages/engine.js'
+import targets from './pages/targets.js'
 import games, * as gmMod from './pages/games.js'
 import { login as loginPage, accounts as accountsPage } from './pages/accounts.js'
 
 const app = $('#app'), main = $('main')
 let cleanups = [], current = null, token = 0, firstRender = true
-const pages = { overview: [overview, ovMod], style: [style, stMod], openings: [openings, {}], habits: [habits, hbMod], engine: [engine, enMod], games: [games, gmMod] }
-const GROUP = { overview: 'insights', style: 'insights', openings: 'insights', habits: 'insights', engine: 'insights', games: 'games', review: 'games', train: 'train', accounts: 'account', login: 'account' }
+const pages = { overview: [overview, ovMod], style: [style, stMod], openings: [openings, {}], habits: [habits, hbMod], engine: [engine, enMod], targets: [targets, {}], games: [games, gmMod] }
+const GROUP = { overview: 'insights', style: 'insights', openings: 'insights', habits: 'insights', engine: 'insights', targets: 'insights', games: 'games', review: 'games', train: 'train', accounts: 'account', login: 'account' }
 
 // ---------- navigation bar ----------
 const item = (href, t, d, extra = '') => `<a href="${href}" ${extra}><b>${t}</b><span>${d}</span></a>`
@@ -33,7 +34,7 @@ function syncNav(name) {
     ? item('#/accounts', 'My accounts', 'Tracked usernames and their progress') + `<a href="#/" data-signout><b>Sign out</b><span>${esc(cloud.email() || '')}</span></a>`
     : item('#/login', 'Sign in', 'Let a server analyse in the background'), group, true) : ''
   $('#nav').innerHTML = loaded
-    ? dd('insights', 'Insights', item('#/overview', 'Overview', 'Level, rating history and your improvement trend') + item('#/style', 'Playstyle and tips', 'How you play and what to work on') + item('#/openings', 'Openings', 'What you play and what it earns you') + item('#/engine', 'Engine report', 'Accuracy, blunders, time and openings, judged by Stockfish') + item('#/habits', 'Habits', 'When, against whom and how games end'), group)
+    ? dd('insights', 'Insights', item('#/overview', 'Overview', 'Level, rating history and your improvement trend') + item('#/style', 'Playstyle and tips', 'How you play and what to work on') + item('#/openings', 'Openings', 'What you play and what it earns you') + item('#/engine', 'Engine report', 'Accuracy, blunders, time and openings, judged by Stockfish') + item('#/targets', 'Targets', 'Pick a number to improve and track it weekly') + item('#/habits', 'Habits', 'When, against whom and how games end'), group)
       + dd('games', 'Games', item('#/games', 'Game history', 'Every game, with engine review for the newest'), group)
       + dd('train', 'Train', item('#/train', 'Blunder trainer', 'Puzzles from your own missed moves'), group) + acct + settings
     : `<a class="navlink" href="#/" data-sc="story">How it works</a><a class="navlink" href="#/" data-sc="features">What you get</a>${acct}${settings}`
