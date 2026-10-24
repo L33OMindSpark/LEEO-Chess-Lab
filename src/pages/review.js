@@ -6,6 +6,7 @@ import { parseGame, fromAnalysis, judge, winPct } from '../analyze.js'
 import { evalGraph } from '../charts.js'
 import { esc, dateStr } from '../util.js'
 import { HOW } from '../ui.js'
+import { WHY, allWhy, toggleWhy } from '../why.js'
 
 const MARK = m => (m.loss >= 30 ? '<span class="bl">??</span>' : m.loss >= 20 ? '<span class="ms">?</span>' : m.loss >= 10 ? '<span class="ia">?!</span>' : '')
 const evText = l => (l.mate != null ? `M${Math.abs(l.mate)}` : (l.cp > 0 ? '+' : '') + (l.cp / 100).toFixed(2))
@@ -36,6 +37,7 @@ export default async function (root, ctx, id) {
     <div class="pl" id="pbot"></div>
     <div class="ctrl"><button class="btn" data-n="start" aria-label="First move">&#171;</button><button class="btn" data-n="prev" aria-label="Previous move">&#8249;</button><button class="btn" data-n="next" aria-label="Next move">&#8250;</button><button class="btn" data-n="end" aria-label="Last move">&#187;</button><button class="btn" data-n="flip">Flip board</button>
     <label class="chip" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="sb" checked> Show best move</label></div>
+    ${g.score < 1 ? `<div class="why"><p class="muted" style="font-size:.9rem;margin:0 0 8px">Why did you ${g.score === 0 ? 'lose' : 'not win'}? Pick what applies. It builds your own list of causes.</p><div class="chips">${WHY.map(([k, l]) => `<button class="chip" data-why="${k}" aria-pressed="${(allWhy()[id] || []).includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
   </div><div class="stack" id="side"></div></div>`
 
   const cg = Chessground(root.querySelector('#board'), { fen: p.fens[ply], orientation: flip ? 'black' : 'white', viewOnly: true, coordinates: true, animation: { duration: 160 } })
@@ -109,6 +111,7 @@ export default async function (root, ctx, id) {
   root.querySelector('[data-n=next]').onclick = () => go(ply + 1)
   root.querySelector('[data-n=end]').onclick = () => go(n - 1)
   root.querySelector('[data-n=flip]').onclick = toggleFlip
+  root.querySelectorAll('[data-why]').forEach(b => (b.onclick = () => { const on = toggleWhy(id, b.dataset.why).includes(b.dataset.why); b.setAttribute('aria-pressed', on) }))
   root.querySelector('#sb').onchange = e => { showBest = e.target.checked; go(ply) }
   players(); drawSide()
 

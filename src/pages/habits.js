@@ -1,7 +1,7 @@
 import { S } from '../state.js'
 import { slice, metrics, habits } from '../stats.js'
 import { barChart } from '../charts.js'
-import { filterHTML, bindFilter, winLabel } from '../ui.js'
+import { filterHTML, bindFilter, winLabel, tabs, STYLE_TABS } from '../ui.js'
 
 export const refresh = true
 const list = (o, title) => `<h3>${title}</h3><table><tbody>${Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${k}</td><td class="r">${v}</td></tr>`).join('') || '<tr><td class="muted">none</td></tr>'}</tbody></table>`
@@ -9,6 +9,7 @@ const list = (o, title) => `<h3>${title}</h3><table><tbody>${Object.entries(o).s
 export default function (root) {
   const cur = slice(S.games, S.filter), m = metrics(cur, S.sm), h = habits(cur), e = m.e
   root.innerHTML = `<div class="phead"><div><h1>Habits</h1><p>When, against whom and how you win or lose, over ${winLabel()}. Bars show your score; the number below is games played.</p></div>${filterHTML()}</div>
+  <div style="margin-bottom:22px">${tabs('habits', STYLE_TABS)}</div>
   ${m.n < 10 ? '<div class="panel"><p class="empty">Not enough games here. Pick a longer period.</p></div>' : `
   <div class="grid geven">
     <section class="panel"><h2>Day of the week</h2><p class="sub">Score %, dashed line is 50.</p><div id="c1"></div></section>

@@ -6,6 +6,9 @@ Reads every public game of any chess.com username, runs Stockfish on the newest 
 Double-click `start.command` (it serves the prebuilt `dist/` folder and opens the browser).
 To rebuild after changing code: `npm install` once, then `npm run build`. For development: `npm run dev`.
 
+## What it does
+Overview, skills against your opponents (radar), playstyle and habits, openings and an opening doctor, an engine report, mistake patterns, a spaced-repetition blunder trainer, weekly targets, game history with move-by-move review, and your own "why I lost" tags. The pages are grouped as Overview, Insights, Improve and Games.
+
 ## Hosted version
 A login plus background analysis (free Supabase, GitHub Actions and Cloudflare) is set up by `GO-LIVE.md`. The quick version above needs none of it.
 

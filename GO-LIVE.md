@@ -60,6 +60,14 @@ The quick version of the site (no login, runs in the browser) keeps working with
 ## Using it
 Open the site, **Sign in**, then **Account, My accounts**, type a username and **Track account**. The status goes from waiting to reading to analysing to ready. The job checks every 30 minutes, so the first start can take up to half an hour, and a big history takes a few hours of computer time (16,000 games is roughly 5 to 10 hours), spread over several runs automatically. The newest games are done first, so the site is useful long before it finishes. Close the page, come back later, press **Open**. Finished accounts refresh themselves twice a day.
 
+## Optional: a phone notification when the analysis finishes
+1. Install the free **ntfy** app on your phone (https://ntfy.sh).
+2. Subscribe to a topic with a long random name, for example `chess-lab-` followed by a few random words. Anyone who knows the name can read it, so keep it private.
+3. In the GitHub repository add one more secret, `NTFY_TOPIC`, with that name. The job sends one message per account when it finishes.
+
+## Install it on your phone
+Open the site in Safari (iPhone) or Chrome (Android), then Share, **Add to Home Screen**. It opens like an app.
+
 ## Good to know (free plans)
 - Supabase pauses a project nobody has used for a week. The 30 minute job counts as use, so it stays awake. If it ever shows a **Restore** button, press it.
 - GitHub switches off scheduled jobs on a public repository after 60 days without any change to it. If that happens, open the Actions tab and press **Enable workflow**.

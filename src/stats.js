@@ -177,3 +177,81 @@ export function engineReport(set, sm) {
   const swing = rows.filter(r => r.s.mx >= 80 && r.g.score < 1).length
   return { monthly, byClass, opens, costly, swing, total: rows.length, e: engineStats(set, sm) }
 }
+
+// ---------- peers: you against the opponents in your own games ----------
+const clamp = (v, a = 4, b = 96) => Math.max(a, Math.min(b, v))
+export function peer(set, sm) {
+  const rows = set.filter(g => sm[g.id]?.v >= 2).map(g => ({ g, s: sm[g.id] }))
+  if (rows.length < 8) return null
+  const phase = ph => {
+    const mineE = rows.reduce((t, r) => t + r.s.ms[ph] + r.s.bl[ph], 0), mineN = rows.reduce((t, r) => t + r.s.mv[ph], 0)
+    const oppE = rows.reduce((t, r) => t + r.s.oer[ph], 0), oppN = rows.reduce((t, r) => t + r.s.omv[ph], 0)
+    return { me: mineN ? (mineE / mineN) * 100 : 0, peer: oppN ? (oppE / oppN) * 100 : 0, n: mineN }
+  }
+  const win = rows.filter(r => r.s.mx >= 80), lost = rows.filter(r => r.s.mn <= 20)
+  const conv = win.length >= 5 && lost.length >= 5 ? { me: (win.filter(r => r.g.score === 1).length / win.length) * 100, peer: (lost.filter(r => r.g.score === 0).length / lost.length) * 100 } : null
+  const fight = conv ? { me: (lost.filter(r => r.g.score >= 0.5).length / lost.length) * 100, peer: ((win.length - win.filter(r => r.g.score === 1).length) / win.length) * 100 } : null
+  const acc = { me: mean(rows.map(r => r.s.acc)), peer: mean(rows.map(r => r.s.oa)) }
+  const errScore = x => clamp(50 + 40 * Math.log2((x.peer || 0.2) / (x.me || 0.2)))
+  const axes = [
+    { key: 'open', label: 'Opening', ...phase(0), unit: '% errors', low: true },
+    { key: 'mid', label: 'Middlegame', ...phase(1), unit: '% errors', low: true },
+    { key: 'end', label: 'Endgame', ...phase(2), unit: '% errors', low: true },
+  ].map(a => ({ ...a, score: errScore(a) }))
+  if (conv) axes.push({ key: 'conv', label: 'Using an advantage', ...conv, unit: '%', low: false, score: clamp(50 + (conv.me - conv.peer)) }, { key: 'fight', label: 'Fighting back', ...fight, unit: '%', low: false, score: clamp(50 + (fight.me - fight.peer)) })
+  axes.push({ key: 'acc', label: 'Accuracy', ...acc, unit: '%', low: false, score: clamp(50 + (acc.me - acc.peer) * 5) })
+  return { axes, n: rows.length, oppRating: mean(rows.map(r => r.g.opp)), myRating: mean(rows.map(r => r.g.my)) }
+}
+
+// ---------- repeated mistakes: which kinds of position your errors cluster in ----------
+const PIECES = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king']
+export function patterns(set, sm) {
+  const rows = set.filter(g => sm[g.id]?.v >= 2).map(g => ({ g, s: sm[g.id] }))
+  const errs = rows.flatMap(r => r.s.errs.map(e => ({ g: r.g, i: e[0], loss: e[1], tag: e[4] || '' })))
+  if (errs.length < 15) return null
+  const base = k => { const out = []; rows.forEach(r => r.s.bs[k].forEach((v, i) => (out[i] = (out[i] || 0) + v))); return out }
+  const tot = a => a.reduce((x, y) => x + y, 0)
+  const dims = [
+    { k: 'pc', get: t => 'PNBRQK'.indexOf(t[0]), names: i => `${PIECES[i]} moves`, base: base('pc') },
+    { k: 'ph', get: t => +t[1], names: i => ['opening moves', 'middlegame moves', 'endgame moves'][i], base: base('ph') },
+    { k: 'st', get: t => 'AEB'.indexOf(t[3]), names: i => ['moves when you are already winning', 'moves in level positions', 'moves when you are behind'][i], base: base('st') },
+    { k: 'sp', get: t => 'fpsn'.indexOf(t[2]), names: i => ['moves played in under 3 seconds', 'moves in time trouble', 'moves after a long think (15 s or more)', 'normally timed moves'][i], base: base('sp') },
+  ]
+  const cells = []
+  for (const d of dims) {
+    const counts = new Array(d.base.length).fill(0)
+    errs.forEach(e => { const i = d.get(e.tag); if (i >= 0) counts[i]++ })
+    counts.forEach((c, i) => {
+      const mShare = d.base[i] / (tot(d.base) || 1), eShare = c / errs.length
+      if (c >= 8 && mShare > 0.02) cells.push({ label: d.names(i), errs: c, eShare, mShare, lift: eShare / mShare, dim: d.k, idx: i })
+    })
+  }
+  cells.sort((a, b) => b.lift - a.lift)
+  const flag = f => errs.filter(e => e.tag.includes(f)).length
+  const byOpen = new Map()
+  rows.forEach(r => { const o = byOpen.get(r.g.fam) || { n: 0, e: 0 }; o.n++; o.e += r.s.errs.length; byOpen.set(r.g.fam, o) })
+  const avg = errs.length / rows.length
+  const opens = [...byOpen].filter(([f, o]) => o.n >= 6 && f !== 'Unknown').map(([fam, o]) => ({ fam, n: o.n, per: o.e / o.n })).sort((a, b) => b.per - a.per).slice(0, 5)
+  return { total: errs.length, games: rows.length, cells, hung: flag('h'), missed: flag('m'), opens, avg }
+}
+
+// ---------- opening doctor: where your openings keep going wrong ----------
+export const moveLabel = (ply, san) => `${Math.floor(ply / 2) + 1}${ply % 2 ? '...' : '.'}${san}`
+export function doctor(set, sm) {
+  const rows = set.filter(g => sm[g.id]?.v >= 2 && sm[g.id].fd).map(g => ({ g, fd: sm[g.id].fd }))
+  const groups = new Map()
+  for (const r of rows) {
+    const k = `${r.g.me}|${r.g.fam}|${r.fd[0]}|${r.fd[2]}`
+    const o = groups.get(k) || { color: r.g.me, fam: r.g.fam, ply: r.fd[0], played: r.fd[2], n: 0, loss: 0, best: {} }
+    o.n++; o.loss += r.fd[1]; o.best[r.fd[3]] = (o.best[r.fd[3]] || 0) + 1
+    groups.set(k, o)
+  }
+  const leaks = [...groups.values()].filter(o => o.n >= 3 && o.fam !== 'Unknown').map(o => ({ ...o, avg: o.loss / o.n, better: Object.entries(o.best).sort((a, b) => b[1] - a[1])[0][0] })).sort((a, b) => b.n * b.avg - a.n * a.avg).slice(0, 8)
+  // swap suggestions: a weak opening and a strong one with the same colour
+  const rep = engineReport(set, sm), advice = []
+  if (rep) for (const color of ['w', 'b']) {
+    const of = rep.opens.filter(o => o.color === color), weak = of.filter(o => o.e10 < 46)[0], strong = [...of].reverse().find(o => o.e10 > 54)
+    if (weak && strong) advice.push({ color, weak, strong })
+  }
+  return { leaks, advice, games: rows.length }
+}

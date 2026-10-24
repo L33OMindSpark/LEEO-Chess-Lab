@@ -20,3 +20,8 @@ export const dcls = v => (v > 0.0001 ? 'up' : v < -0.0001 ? 'down' : '')
 export const winLabel = () => (S.filter.win ? 'the ' + WINDOWS.find(w => w[0] === S.filter.win)[1].toLowerCase() : 'all time')
 export const cap = s => s[0].toUpperCase() + s.slice(1)
 export const HOW = { checkmated: 'checkmate', resigned: 'resignation', timeout: 'time', abandoned: 'abandonment', agreed: 'agreement', repetition: 'repetition', stalemate: 'stalemate', insufficient: 'insufficient material', '50move': 'the fifty move rule', timevsinsufficient: 'time against insufficient material', win: 'a win' }
+
+// Link tabs that share the sliding thumb of the period switch.
+export const tabs = (active, items) => `<div class="seg">${items.map(([r, l]) => `<a href="#/${r}" aria-pressed="${r === active}">${l}</a>`).join('')}<i class="thumb"></i></div>`
+export const STYLE_TABS = [['style', 'Playstyle and tips'], ['habits', 'Habits']]
+export const OPEN_TABS = [['openings', 'Your openings'], ['doctor', 'Opening doctor']]

@@ -94,15 +94,42 @@ export function fromAnalysis(a) {
   return { fens, sans, ucis: a.ucis.split(' '), clk: a.clk || [], ph: a.ph }
 }
 
+const PIECE = 'PNBRQK'
+const sanPiece = san => (san[0] === 'O' ? 'K' : /[NBRQK]/.test(san[0]) ? san[0] : 'P')
+const uci = m => m.from + m.to + (m.promotion || '')
+
 // A few hundred bytes per game that every statistic can be built from, so the full records are only
-// fetched when you open a game or train on it.
+// fetched when you open a game or train on it. v2 adds the opponent's side, the kind of position each
+// of your errors happened in, and the first move where an opening went wrong.
 export function summarize(g, a) {
-  const m = myGame(g, a), mine = m.mine, ucis = a.ucis.split(' ')
+  const m = myGame(g, a), mine = m.mine, ucis = a.ucis.split(' '), sans = a.sans.split(' ')
+  const par = g.me === 'w' ? 0 : 1, opp = m.J.filter(x => x.i % 2 !== par)
   const per = k => [0, 1, 2].map(p => mine.filter(x => x.ph === p && x.cls === k).length)
   const timed = mine.filter(x => x.spent != null), sign = g.me === 'w' ? 1 : -1
   const blunders = mine.filter(x => x.loss >= 30)
+  let fens = null
+  try { const c = new Chess(); fens = [c.fen()]; for (const x of sans) { c.move(x); fens.push(c.fen()) } } catch {}
+  const speed = x => (x.spent == null ? 'n' : x.pressure ? 'p' : x.spent < 3 ? 'f' : x.spent >= 15 ? 's' : 'n')
+  const state = x => (x.before >= 65 ? 'A' : x.before <= 35 ? 'B' : 'E')
+  const elig = mine.filter(x => x.before >= 25)
+  const count = (arr, f, n) => { const o = new Array(n).fill(0); arr.forEach(x => o[f(x)]++); return o }
+  const tag = x => {
+    let flags = ''
+    if (fens) {
+      try {
+        const nxt = new Chess(fens[x.i + 1]).moves({ verbose: true }).find(k => uci(k) === a.best[x.i + 1])
+        if (nxt?.captured) flags += 'h'
+        const bm = new Chess(fens[x.i]).moves({ verbose: true }).find(k => uci(k) === a.best[x.i])
+        if (bm?.captured && !sans[x.i].includes('x')) flags += 'm'
+      } catch {}
+    }
+    return sanPiece(sans[x.i]) + x.ph + speed(x) + state(x) + flags
+  }
+  const first = mine.find(x => x.i < 24 && x.loss >= 10 && a.best[x.i])
+  let fd = null
+  if (first && fens) { try { const b = a.best[first.i], bs = new Chess(fens[first.i]).move({ from: b.slice(0, 2), to: b.slice(2, 4), promotion: b[4] }).san; fd = [first.i, Math.round(first.loss), sans[first.i], bs] } catch {} }
   return {
-    v: 1, d: a.d, acc: +m.acc.toFixed(1),
+    v: 2, d: a.d, acc: +m.acc.toFixed(1),
     mv: [0, 1, 2].map(p => mine.filter(x => x.ph === p).length), ia: per('inaccuracy'), ms: per('mistake'), bl: per('blunder'),
     mx: Math.round(m.maxWin), mn: Math.round(m.minWin),
     ae: mine.filter(x => x.before >= 70 && x.loss >= 20).length,
@@ -112,6 +139,12 @@ export function summarize(g, a) {
     bt: blunders.filter(x => x.spent != null).length, fb: blunders.filter(x => x.spent != null && x.spent < 3).length,
     e10: a.ev.length > 20 ? Math.round(winPct(sign * a.ev[20])) : null,
     oob: mine.length > 8 && mine[8].before < 40 ? 1 : 0,
-    errs: mine.filter(x => x.loss >= 20 && x.before >= 25 && a.best[x.i] && a.best[x.i] !== ucis[x.i]).map(x => [x.i, Math.round(x.loss), ucis[x.i], a.best[x.i]]),
+    errs: mine.filter(x => x.loss >= 20 && x.before >= 25 && a.best[x.i] && a.best[x.i] !== ucis[x.i]).map(x => [x.i, Math.round(x.loss), ucis[x.i], a.best[x.i], tag(x)]),
+    // baselines for the pattern finder: how many of my moves fell in each kind of position
+    bs: { pc: count(elig, x => PIECE.indexOf(sanPiece(sans[x.i])), 6), ph: count(elig, x => x.ph, 3), st: count(elig, x => 'ABE'.indexOf(state(x)) < 0 ? 2 : { A: 0, E: 1, B: 2 }[state(x)], 3), sp: count(elig, x => 'fpsn'.indexOf(speed(x)), 4) },
+    // the opponent in the same games, for the peer comparison
+    oa: +mean(opp.map(x => x.acc)).toFixed(1), omv: [0, 1, 2].map(p => opp.filter(x => x.ph === p).length),
+    oer: [0, 1, 2].map(p => opp.filter(x => x.ph === p && x.loss >= 20).length), obl: opp.filter(x => x.loss >= 30).length,
+    fd,
   }
 }

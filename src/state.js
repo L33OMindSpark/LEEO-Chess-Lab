@@ -18,8 +18,8 @@ export const analysedCount = () => Object.keys(S.sm).length
 export async function loadAnalyses() {
   S.an = {}
   S.sm = await kvScan(`sm:${S.user}:`)
-  // records saved before summaries existed
-  const missing = (await kvKeys(`an:${S.user}:`)).filter(id => !S.sm[id])
+  // records saved before summaries existed, or with an older summary format
+  const missing = (await kvKeys(`an:${S.user}:`)).filter(id => !S.sm[id] || S.sm[id].v < 2)
   if (missing.length) {
     const byId = new Map(S.games.map(g => [g.id, g]))
     for (const id of missing) {

@@ -13,13 +13,16 @@ import openings from './pages/openings.js'
 import habits, * as hbMod from './pages/habits.js'
 import engine, * as enMod from './pages/engine.js'
 import targets from './pages/targets.js'
+import skills, * as skMod from './pages/skills.js'
+import mistakes, * as miMod from './pages/mistakes.js'
+import doctor, * as dcMod from './pages/doctor.js'
 import games, * as gmMod from './pages/games.js'
 import { login as loginPage, accounts as accountsPage } from './pages/accounts.js'
 
 const app = $('#app'), main = $('main')
 let cleanups = [], current = null, token = 0, firstRender = true
-const pages = { overview: [overview, ovMod], style: [style, stMod], openings: [openings, {}], habits: [habits, hbMod], engine: [engine, enMod], targets: [targets, {}], games: [games, gmMod] }
-const GROUP = { overview: 'insights', style: 'insights', openings: 'insights', habits: 'insights', engine: 'insights', targets: 'insights', games: 'games', review: 'games', train: 'train', accounts: 'account', login: 'account' }
+const pages = { overview: [overview, ovMod], skills: [skills, skMod], style: [style, stMod], openings: [openings, {}], doctor: [doctor, dcMod], habits: [habits, hbMod], engine: [engine, enMod], mistakes: [mistakes, miMod], targets: [targets, {}], games: [games, gmMod] }
+const GROUP = { overview: 'overview', skills: 'insights', style: 'insights', habits: 'insights', openings: 'insights', doctor: 'insights', engine: 'insights', mistakes: 'improve', train: 'improve', targets: 'improve', games: 'games', review: 'games', accounts: 'account', login: 'account' }
 
 // ---------- navigation bar ----------
 const item = (href, t, d, extra = '') => `<a href="${href}" ${extra}><b>${t}</b><span>${d}</span></a>`
@@ -34,9 +37,10 @@ function syncNav(name) {
     ? item('#/accounts', 'My accounts', 'Tracked usernames and their progress') + `<a href="#/" data-signout><b>Sign out</b><span>${esc(cloud.email() || '')}</span></a>`
     : item('#/login', 'Sign in', 'Let a server analyse in the background'), group, true) : ''
   $('#nav').innerHTML = loaded
-    ? dd('insights', 'Insights', item('#/overview', 'Overview', 'Level, rating history and your improvement trend') + item('#/style', 'Playstyle and tips', 'How you play and what to work on') + item('#/openings', 'Openings', 'What you play and what it earns you') + item('#/engine', 'Engine report', 'Accuracy, blunders, time and openings, judged by Stockfish') + item('#/targets', 'Targets', 'Pick a number to improve and track it weekly') + item('#/habits', 'Habits', 'When, against whom and how games end'), group)
-      + dd('games', 'Games', item('#/games', 'Game history', 'Every game, with engine review for the newest'), group)
-      + dd('train', 'Train', item('#/train', 'Blunder trainer', 'Puzzles from your own missed moves'), group) + acct + settings
+    ? `<a class="navlink ${group === 'overview' ? 'on' : ''}" href="#/overview">Overview</a>`
+      + dd('insights', 'Insights', item('#/skills', 'Skills and peers', 'How you compare with opponents at your level') + item('#/style', 'Playstyle and habits', 'How you play, when, and what to work on') + item('#/openings', 'Openings', 'Your results, and where lines go wrong') + item('#/engine', 'Engine report', 'Accuracy, blunders and time, judged by Stockfish'), group)
+      + dd('improve', 'Improve', item('#/mistakes', 'Mistake patterns', 'Where your errors keep clustering') + item('#/train', 'Blunder trainer', 'Your missed moves, repeated until they stick') + item('#/targets', 'Targets', 'Pick a number and track it weekly'), group)
+      + `<a class="navlink ${group === 'games' ? 'on' : ''}" href="#/games">Games</a>` + acct + settings
     : `<a class="navlink" href="#/" data-sc="story">How it works</a><a class="navlink" href="#/" data-sc="features">What you get</a>${acct}${settings}`
   $('#tcta').innerHTML = loaded ? `<a class="chip" href="#/overview" style="text-decoration:none">${S.profile?.avatar ? `<img src="${esc(S.profile.avatar)}" alt="" width="20" height="20" style="border-radius:50%">` : ''}<span class="u">${esc(S.user)}</span></a>`
     : `${cloud.enabled && !cloud.signedIn() ? '<a class="btn small pill" href="#/login">Sign in</a>' : ''}<button class="btn primary small pill" data-focus>Analyse</button>`

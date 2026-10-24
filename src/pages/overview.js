@@ -1,8 +1,8 @@
-import { S, startBatch, startAll, analysedCount } from '../state.js'
-import { slice, metrics, horizons, ratingSeries, style } from '../stats.js'
+import { S, analysedCount } from '../state.js'
+import { slice, metrics, horizons, ratingSeries, peer } from '../stats.js'
 import { tips } from '../tips.js'
-import { lineChart, heatmap } from '../charts.js'
-import { esc, fmt, dateStr } from '../util.js'
+import { lineChart, heatmap, radar } from '../charts.js'
+import { esc, fmt } from '../util.js'
 import { filterHTML, bindFilter, sign, dcls, winLabel, cap } from '../ui.js'
 
 export const refresh = true
@@ -14,17 +14,16 @@ export default function (root) {
   const m = metrics(cur, S.sm)
   const hz = horizons(S.games, f.classes, S.sm)
   const verdict = hz.find(h => h.win === f.win)?.verdict
-  const st = style(cur, m), p = S.profile || {}, stats = S.stats || {}
-  const analysed = analysedCount(), total = S.games.length, left = S.games.filter(g => g.pgn && !S.sm[g.id]).length
+  const P = peer(cur, S.sm), p = S.profile || {}, stats = S.stats || {}
+  const analysed = analysedCount(), total = S.games.length
   const now = k => stats['chess_' + k]?.last?.rating, best = k => stats['chess_' + k]?.best?.rating
-  const tp = tips(cur, m).slice(0, 3)
+  const tp = tips(cur, m)
 
-  // what changed since the last visit
-  let since = ''
-  if (S.lastVisit && Date.now() - S.lastVisit > 3600000) {
-    const fresh = S.games.filter(g => g.t * 1000 > S.lastVisit && f.classes.has(g.cls))
-    if (fresh.length) { const sm = metrics(fresh, S.sm); since = `<div class="since"><span class="muted">Since your last visit ${ago(Date.now() - S.lastVisit)}</span><span><b>${fresh.length}</b> new games</span><span><b class="delta ${dcls(sm.ratingDelta)}">${sign(sm.ratingDelta)}</b> rating</span><span><b>${sm.score.toFixed(0)}%</b> score</span></div>` }
-  }
+  // this week, or what changed since the last visit, plus the one thing to focus on
+  const wk = metrics(slice(S.games, { win: 7, classes: f.classes }), S.sm), recent = S.lastVisit && Date.now() - S.lastVisit > 3600000 ? S.games.filter(g => g.t * 1000 > S.lastVisit && f.classes.has(g.cls)) : null
+  const dg = recent?.length ? metrics(recent, S.sm) : wk, head = recent?.length ? `Since your last visit ${ago(Date.now() - S.lastVisit)}` : 'This week'
+  const strip = dg.n ? `<div class="since"><span class="muted">${head}</span><span><b>${dg.n}</b> games</span><span><b class="delta ${dcls(dg.ratingDelta)}">${sign(dg.ratingDelta)}</b> rating</span><span><b>${dg.score.toFixed(0)}%</b> score</span>${dg.acc != null ? `<span><b>${dg.acc.toFixed(0)}%</b> accuracy</span>` : ''}${tp[0] ? `<span style="flex-basis:100%;margin-top:4px">Focus: <b style="font-size:1.05rem">${esc(tp[0].title)}</b> <a href="#/style">Why and what to do</a></span>` : ''}</div>` : ''
+  const cover = analysedCount() < total * 0.98 ? `<p class="muted" style="margin:-12px 0 26px;font-size:.92rem">Stockfish has analysed ${((analysedCount() / total) * 100).toFixed(analysedCount() ? 1 : 0)}% of your games. <a href="#/engine">${S.cloud ? 'See the progress' : 'Analyse more'}</a></p>` : ''
 
   root.innerHTML = `
   <div class="phead">
@@ -32,7 +31,7 @@ export default function (root) {
       <p>${fmt(S.games.length)} games read${p.joined ? `, playing since ${new Date(p.joined * 1000).getFullYear()}` : ''}. Showing ${winLabel()}.</p></div></div>
     ${filterHTML()}
   </div>
-  ${since}
+  ${strip}${cover}
   ${m.n === 0 ? `<div class="card"><p class="empty">No games in this selection. Pick a longer period or turn on more time controls.</p></div>` : `
   <section class="sec"><div class="lead"><h2>Your level</h2><p>The average rating of the games in this selection, next to the rating chess.com shows now.</p></div>
     <div class="levels">${Object.entries(m.byCls).map(([k, c]) => `<div class="level" style="--c:var(--c-${k})"><div class="name">${cap(k)}</div>
@@ -58,30 +57,12 @@ export default function (root) {
 
   <section class="sec"><div class="lead"><h2>Activity</h2><p>How often you played over the last year. Hover a day for the score.</p></div><div class="card"><div id="heat"></div></div></section>
 
-  <section class="sec"><div class="lead"><h2>Playstyle</h2><p>Built from how your games actually end. <a href="#/style">All meters and coaching tips</a></p></div>
-    <div><div class="archetype">${st.name}</div><p class="muted">${st.why.join(', ')}.</p>
-      <div class="grid geven" style="column-gap:44px">${st.meters.slice(0, 4).map(x => `<div class="meter"><div class="lab"><span>${x.left}</span><span>${x.right}</span></div><div class="track"><b style="left:${x.value * 100}%"></b></div><div class="note">${x.note}</div></div>`).join('')}</div></div></section>
-
-  <section class="sec"><div class="lead"><h2>Engine review</h2><p>Stockfish judges every move of the games it has analysed. <a href="#/engine">Open the full engine report</a></p></div><div>
-    ${m.e ? `<div class="levels"><div class="level"><div class="name">Average accuracy</div><div class="big num" data-count="${m.e.acc.toFixed(1)}" data-dec="1">${m.e.acc.toFixed(1)}</div><div class="muted">over ${m.e.games} analysed games</div></div>
-      <div class="level"><div class="name">Errors per 100 moves</div><div class="big num" data-count="${m.e.err100.toFixed(1)}" data-dec="1">${m.e.err100.toFixed(1)}</div><div class="muted">mistakes and blunders</div></div>
-      <div class="level"><div class="name">Weakest phase</div><div class="big num" style="font-size:2.4rem;padding-top:14px">${['Opening', 'Middlegame', 'Endgame'][m.e.phRate.indexOf(Math.max(...m.e.phRate))]}</div><div class="muted">${Math.max(...m.e.phRate).toFixed(1)}% of moves go wrong</div></div></div>`
-      : `<p class="muted" style="margin-top:0">No engine results in this selection yet.</p>`}
-    <div class="cover"><div class="bar"><i style="width:${(analysed / total) * 100}%"></i></div><p class="muted" style="margin:0">${fmt(analysed)} of ${fmt(total)} games analysed (${((analysed / total) * 100).toFixed(analysed === total ? 0 : 1)}%).</p></div>
-    ${S.cloud ? `<p class="muted">The server works through your whole history${S.cloud.refreshed_at ? ` and last updated on ${dateStr(Date.parse(S.cloud.refreshed_at) / 1000)}` : ''}. See Account, My accounts for its progress.</p>`
-    : `<div class="filters"><select id="nbatch" class="field" style="width:auto"><option>25</option><option>100</option><option>250</option><option selected>500</option></select>
-      <button class="btn primary" id="runbatch" ${S.job || !left ? 'disabled' : ''}>${S.job ? 'Analysing' : 'Analyse newest games'}</button>
-      <button class="btn" id="runall" ${S.job || analysed >= total ? 'disabled' : ''}>Analyse entire history</button></div>
-      <p class="faint" style="font-size:.88rem">Runs in this tab and is saved as it goes, so you can stop and continue later. A whole history takes many hours in a browser. A tracked account does it on a server instead.</p>`}
-  </div></section>
-
-  ${tp.length ? `<section class="sec"><div class="lead"><h2>Where to improve first</h2><p>The three biggest leaks in this selection. <a href="#/style">See all tips</a></p></div>
-    <div>${tp.map(t => `<div class="tipcard"><span class="area">${t.area}</span><h3>${esc(t.title)}</h3><div>${esc(t.body)}</div><div class="drill">${esc(t.drill)}</div></div>`).join('')}</div></section>` : ''}`}`
+  <section class="sec"><div class="lead"><h2>Where you stand</h2><p>You against the opponents in your own games. <a href="#/skills">See the full comparison</a></p></div>
+    ${P ? `<div class="grid geven" style="align-items:center"><div class="card"><div id="rd"></div></div><div><p style="font:560 1.5rem/1.3 var(--serif);margin:0 0 14px">${[...P.axes].sort((a, b) => b.score - a.score)[0].score > 55 ? `Your strongest area is <b>${[...P.axes].sort((a, b) => b.score - a.score)[0].label.toLowerCase()}</b>.` : 'You are level with your opponents.'} ${[...P.axes].sort((a, b) => a.score - b.score)[0].score < 45 ? `<b>${[...P.axes].sort((a, b) => a.score - b.score)[0].label}</b> is where they beat you.` : ''}</p>
+      <p class="muted" style="margin:0">Based on ${fmt(P.n)} analysed games. <a href="#/mistakes">See which mistakes repeat</a></p></div></div>` : `<p class="muted" style="margin-top:0">Needs analysed games. <a href="#/engine">Analyse your games</a> and this fills in.</p>`}</section>
+`}`
 
   bindFilter(root, () => root.dispatchEvent(new Event('rerender')))
   if (m.n) { lineChart(root.querySelector('#rc'), ratingSeries(cur, f.classes)); heatmap(root.querySelector('#heat'), S.games.filter(g => f.classes.has(g.cls))) }
-  const rb = root.querySelector('#runbatch')
-  if (rb) rb.onclick = () => startBatch(+root.querySelector('#nbatch').value)
-  const ra = root.querySelector('#runall')
-  if (ra) ra.onclick = () => startAll()
+  if (P) radar(root.querySelector('#rd'), P.axes, { size: 380 })
 }

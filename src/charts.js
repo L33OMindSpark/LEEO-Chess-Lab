@@ -112,3 +112,20 @@ export const ring = acc => {
   const c = 2 * Math.PI * 19, col = acc >= 85 ? 'var(--win)' : acc >= 70 ? 'var(--accent)' : 'var(--warn)'
   return `<div class="ring"><svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="23" cy="23" r="19" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(acc / 100) * c} ${c}"/></svg><b>${Math.round(acc)}</b></div>`
 }
+
+// Radar of 0 to 100 scores. The dashed ring at 50 is "equal to the opponents in your games".
+export function radar(el, axes, { size = 420 } = {}) {
+  const c = size / 2, R = size / 2 - 64, n = axes.length
+  const pt = (i, v) => { const a = -Math.PI / 2 + (i / n) * 2 * Math.PI; return [c + Math.cos(a) * R * (v / 100), c + Math.sin(a) * R * (v / 100)] }
+  const ring = v => axes.map((_, i) => pt(i, v).map(x => x.toFixed(1)).join(',')).join(' ')
+  let g = [25, 75, 100].map(v => `<polygon points="${ring(v)}" fill="none" stroke="var(--line)"/>`).join('') + `<polygon points="${ring(50)}" fill="none" stroke="var(--faint)" stroke-dasharray="4 4"/>`
+  axes.forEach((a, i) => { const [x, y] = pt(i, 100), [lx, ly] = pt(i, 118); g += `<line x1="${c}" y1="${c}" x2="${x}" y2="${y}" stroke="var(--line)"/><text x="${lx}" y="${ly + 4}" class="ax" text-anchor="${Math.abs(lx - c) < 8 ? 'middle' : lx > c ? 'start' : 'end'}" style="font-size:12px;fill:var(--ink)">${a.label}</text>` })
+  const poly = axes.map((a, i) => pt(i, a.score).map(x => x.toFixed(1)).join(',')).join(' ')
+  g += `<polygon class="rpoly" points="${poly}" fill="var(--accent)" fill-opacity=".18" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>` + axes.map((a, i) => { const [x, y] = pt(i, a.score); return `<circle cx="${x}" cy="${y}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" data-i="${i}"/>` }).join('')
+  el.innerHTML = svg(size, size, g, 'radar')
+  el.querySelectorAll('circle').forEach(ci => {
+    const a = axes[ci.dataset.i]
+    ci.addEventListener('mousemove', ev => showTip(`<b>${a.label}</b><div>You ${a.me.toFixed(1)}${a.unit.startsWith('%') ? '%' : ''} vs ${a.peer.toFixed(1)}${a.unit.startsWith('%') ? '%' : ''} for opponents</div>`, ev))
+    ci.addEventListener('mouseleave', hideTip)
+  })
+}

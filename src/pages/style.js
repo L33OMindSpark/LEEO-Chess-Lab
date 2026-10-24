@@ -2,7 +2,7 @@ import { S } from '../state.js'
 import { slice, metrics, style, WINDOWS } from '../stats.js'
 import { tips } from '../tips.js'
 import { esc } from '../util.js'
-import { filterHTML, bindFilter, winLabel } from '../ui.js'
+import { filterHTML, bindFilter, winLabel, tabs, STYLE_TABS } from '../ui.js'
 
 export const refresh = true
 
@@ -11,6 +11,7 @@ export default function (root) {
   const list = m.n >= 15 ? tips(cur, m) : []
   const cols = WINDOWS.filter(w => w[0]).map(([win, l]) => ({ l: l.replace('Last ', ''), m: metrics(slice(S.games, { win, classes: f.classes }), S.sm) }))
   root.innerHTML = `<div class="phead"><div><h1>Playstyle and tips</h1><p>Built from your games over ${winLabel()}. All rules run on this computer.</p></div>${filterHTML()}</div>
+  <div style="margin-bottom:22px">${tabs('style', STYLE_TABS)}</div>
   ${m.n < 15 ? `<div class="panel"><p class="empty">At least 15 games are needed for a reliable read. Choose a longer period.</p></div>` : `
   <div class="grid g21">
     <section class="panel"><h2>You are ${/^[aeiou]/i.test(st.name) ? 'an' : 'a'} ${st.name.toLowerCase()}</h2><p class="sub">${st.why.join(', ')}.</p>
