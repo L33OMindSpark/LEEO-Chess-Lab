@@ -1,3 +1,4 @@
+// Checks the database rules. Run: npm i --no-save @electric-sql/pglite && node supabase/test-sql.mjs
 import { PGlite } from '@electric-sql/pglite'
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
 import fs from 'node:fs'
@@ -5,7 +6,7 @@ const db = new PGlite({ extensions: { pgcrypto } })
 await db.exec(`create extension pgcrypto; create schema if not exists extensions; create or replace function extensions.digest(t text, a text) returns bytea language sql as $$ select public.digest(t::bytea, a) $$;
 create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('app.uid', true),'')::uuid $$;
 create role anon; create role authenticated; grant usage on schema public, auth, extensions to anon, authenticated;`)
-const sql = fs.readFileSync(process.env.HOME + '/chess-lab/supabase/migrations/0001_chess_lab.sql', 'utf8')
+const sql = fs.readFileSync(new URL('./migrations/0001_chess_lab.sql', import.meta.url), 'utf8')
 await db.exec(sql); await db.exec(sql) // twice: must be re-runnable
 const A = '11111111-1111-1111-1111-111111111111', B = '22222222-2222-2222-2222-222222222222'
 await db.exec(`insert into auth.users values ('${A}'),('${B}'); insert into public.worker_key values (encode(digest('s3cret','sha256'),'hex'));`)
