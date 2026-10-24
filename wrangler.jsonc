@@ -1,6 +1,6 @@
 // Cloudflare hosting: serve the built site (dist/) as static files.
 {
-  "name": "chess-lab",
+  "name": "leeo-chess-lab",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./dist",
