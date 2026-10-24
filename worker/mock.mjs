@@ -24,14 +24,19 @@ export function startMock(port = 54321) {
       if (req.method === 'DELETE') { db.accounts = db.accounts.filter(a => a.id !== eq('id')); return send(res, 204) }
     }
     if (p === '/rest/v1/games_months') return send(res, 200, Object.entries(db.months[eq('account_id')] || {}).map(([ym, data]) => ({ ym, data })))
-    if (p === '/rest/v1/analyses') { const all = Object.entries(db.analyses[eq('account_id')] || {}).map(([game_id, data]) => ({ game_id, data })); const o = +q.get('offset') || 0, l = +q.get('limit') || 1000; return send(res, 200, all.slice(o, o + l)) }
+    if (p === '/rest/v1/analyses') {
+      const all = Object.entries(db.analyses[eq('account_id')] || {}).map(([game_id, v]) => ({ game_id, data: v.d, summary: v.s }))
+      if (q.get('game_id')) return send(res, 200, all.filter(r => r.game_id === eq('game_id')).map(r => ({ data: r.data })))
+      const o = +q.get('offset') || 0, l = +q.get('limit') || 1000
+      return send(res, 200, all.slice(o, o + l).map(r => ({ game_id: r.game_id, summary: r.summary })))
+    }
     if (p.startsWith('/rest/v1/rpc/')) {
       if (body.secret !== 'test-secret') return send(res, 400, { message: 'denied' })
       const fn = p.split('/').pop(), a = db.accounts.find(x => x.id === body.acc)
       if (fn === 'worker_claim') { const j = db.accounts.find(x => ['pending', 'reading', 'analysing'].includes(x.status)); return send(res, 200, j ? { id: j.id, user: j.chess_username, depth: j.depth, first: j.games_total === 0 } : null) }
       if (fn === 'worker_status') { Object.assign(a, { status: body.st, last_error: body.err }); for (const [k, f] of [['games_total', 'total'], ['analysed', 'done'], ['analysis_target', 'target']]) if (body[f] != null) a[k] = body[f]; if (body.finished) a.refreshed_at = new Date().toISOString(); return send(res, 204) }
       if (fn === 'worker_put_months') { Object.assign((db.months[body.acc] ||= {}), body.months); return send(res, 204) }
-      if (fn === 'worker_put_analysis') { (db.analyses[body.acc] ||= {})[body.gid] = body.d; return send(res, 204) }
+      if (fn === 'worker_put_analysis') { (db.analyses[body.acc] ||= {})[body.gid] = { d: body.d, s: body.s }; return send(res, 204) }
       if (fn === 'worker_done_ids') return send(res, 200, Object.keys(db.analyses[body.acc] || {}))
     }
     send(res, 404, { message: 'not found ' + p })

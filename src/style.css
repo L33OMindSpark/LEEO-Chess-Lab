@@ -204,7 +204,7 @@ tbody tr.click{cursor:pointer}tbody tr.click:hover{background:var(--accent-soft)
 .game .when{font-size:.85rem;color:var(--muted)}
 .game .opp b{font-weight:600}.game .opp span,.game .op span{color:var(--muted);font-size:.88rem}
 .game .op{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.spark{display:block;width:100%;height:26px}
+.spark{display:block;width:100%;height:26px}.errs{font-size:.86rem;color:var(--muted)}.cover{margin:28px 0 10px}.cover .bar{height:8px;margin:0 0 10px}
 .ring{position:relative;width:46px;height:46px}
 .ring svg{width:46px;height:46px;transform:rotate(-90deg)}
 .ring b{position:absolute;inset:0;display:grid;place-items:center;font:600 .78rem var(--sans)}
@@ -334,3 +334,8 @@ body[data-route=login] .top{background:var(--bg);border-color:var(--line)}
 .stage,.ribbon{max-width:100%}
 @media(max-width:1000px){.hero,.story-in{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:1000px){.bento{grid-template-columns:minmax(0,1fr)}.card .wdl{width:72px}}
+
+.hbar{display:grid;grid-template-columns:110px 1fr 230px;gap:16px;align-items:center;padding:7px 0}
+.hbar .hb{height:10px;border-radius:5px;background:var(--line);overflow:hidden}.hbar .hb i{display:block;height:100%;border-radius:5px;background:var(--accent);transition:width 1s var(--ease)}
+.hbar b{font-weight:500;font-size:.9rem;color:var(--muted)}
+@media(max-width:700px){.hbar{grid-template-columns:90px 1fr}.hbar b{grid-column:1/-1}}

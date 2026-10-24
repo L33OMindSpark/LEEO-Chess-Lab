@@ -1,4 +1,4 @@
-import { S, startBatch } from '../state.js'
+import { S, startBatch, startAll, analysedCount } from '../state.js'
 import { slice, metrics, horizons, ratingSeries, style } from '../stats.js'
 import { tips } from '../tips.js'
 import { lineChart, heatmap } from '../charts.js'
@@ -11,11 +11,11 @@ const ago = ms => { const h = ms / 3600000; return h < 48 ? `${Math.round(h)} ho
 
 export default function (root) {
   const f = S.filter, cur = slice(S.games, f), prevSet = slice(S.games, f, 1)
-  const m = metrics(cur, S.an)
-  const hz = horizons(S.games, f.classes, S.an)
+  const m = metrics(cur, S.sm)
+  const hz = horizons(S.games, f.classes, S.sm)
   const verdict = hz.find(h => h.win === f.win)?.verdict
   const st = style(cur, m), p = S.profile || {}, stats = S.stats || {}
-  const analysed = S.games.filter(g => S.an[g.id]).length, canAnalyse = S.games.filter(g => g.pgn).length
+  const analysed = analysedCount(), total = S.games.length, left = S.games.filter(g => g.pgn && !S.sm[g.id]).length
   const now = k => stats['chess_' + k]?.last?.rating, best = k => stats['chess_' + k]?.best?.rating
   const tp = tips(cur, m).slice(0, 3)
 
@@ -23,7 +23,7 @@ export default function (root) {
   let since = ''
   if (S.lastVisit && Date.now() - S.lastVisit > 3600000) {
     const fresh = S.games.filter(g => g.t * 1000 > S.lastVisit && f.classes.has(g.cls))
-    if (fresh.length) { const sm = metrics(fresh, S.an); since = `<div class="since"><span class="muted">Since your last visit ${ago(Date.now() - S.lastVisit)}</span><span><b>${fresh.length}</b> new games</span><span><b class="delta ${dcls(sm.ratingDelta)}">${sign(sm.ratingDelta)}</b> rating</span><span><b>${sm.score.toFixed(0)}%</b> score</span></div>` }
+    if (fresh.length) { const sm = metrics(fresh, S.sm); since = `<div class="since"><span class="muted">Since your last visit ${ago(Date.now() - S.lastVisit)}</span><span><b>${fresh.length}</b> new games</span><span><b class="delta ${dcls(sm.ratingDelta)}">${sign(sm.ratingDelta)}</b> rating</span><span><b>${sm.score.toFixed(0)}%</b> score</span></div>` }
   }
 
   root.innerHTML = `
@@ -62,16 +62,17 @@ export default function (root) {
     <div><div class="archetype">${st.name}</div><p class="muted">${st.why.join(', ')}.</p>
       <div class="grid geven" style="column-gap:44px">${st.meters.slice(0, 4).map(x => `<div class="meter"><div class="lab"><span>${x.left}</span><span>${x.right}</span></div><div class="track"><b style="left:${x.value * 100}%"></b></div><div class="note">${x.note}</div></div>`).join('')}</div></div></section>
 
-  <section class="sec"><div class="lead"><h2>Engine review</h2><p>Stockfish judges every move of your newest games.</p></div><div>
+  <section class="sec"><div class="lead"><h2>Engine review</h2><p>Stockfish judges every move of the games it has analysed. <a href="#/engine">Open the full engine report</a></p></div><div>
     ${m.e ? `<div class="levels"><div class="level"><div class="name">Average accuracy</div><div class="big num" data-count="${m.e.acc.toFixed(1)}" data-dec="1">${m.e.acc.toFixed(1)}</div><div class="muted">over ${m.e.games} analysed games</div></div>
       <div class="level"><div class="name">Errors per 100 moves</div><div class="big num" data-count="${m.e.err100.toFixed(1)}" data-dec="1">${m.e.err100.toFixed(1)}</div><div class="muted">mistakes and blunders</div></div>
       <div class="level"><div class="name">Weakest phase</div><div class="big num" style="font-size:2.4rem;padding-top:14px">${['Opening', 'Middlegame', 'Endgame'][m.e.phRate.indexOf(Math.max(...m.e.phRate))]}</div><div class="muted">${Math.max(...m.e.phRate).toFixed(1)}% of moves go wrong</div></div></div>`
       : `<p class="muted" style="margin-top:0">No engine results in this selection yet.</p>`}
-    ${S.cloud ? `<p class="muted" style="margin-top:24px">The server has analysed ${analysed} of your ${canAnalyse} newest games${S.cloud.refreshed_at ? ` and last updated on ${dateStr(Date.parse(S.cloud.refreshed_at) / 1000)}` : ''}. See Account, My accounts for its progress.</p>`
-    : `<p class="muted" style="margin-top:24px">${analysed} of your ${canAnalyse} newest games are analysed. Older games count towards every other number on this page.</p>
-      <div class="filters"><select id="nbatch" class="field" style="width:auto"><option>25</option><option>100</option><option>250</option><option selected>500</option></select>
-      <button class="btn primary" id="runbatch" ${S.job || analysed >= canAnalyse ? 'disabled' : ''}>${S.job ? 'Analysing' : 'Analyse newest games'}</button></div>
-      <p class="faint" style="font-size:.88rem">Runs in this tab and is saved as it goes, so you can close it and continue later.</p>`}
+    <div class="cover"><div class="bar"><i style="width:${(analysed / total) * 100}%"></i></div><p class="muted" style="margin:0">${fmt(analysed)} of ${fmt(total)} games analysed (${((analysed / total) * 100).toFixed(analysed === total ? 0 : 1)}%).</p></div>
+    ${S.cloud ? `<p class="muted">The server works through your whole history${S.cloud.refreshed_at ? ` and last updated on ${dateStr(Date.parse(S.cloud.refreshed_at) / 1000)}` : ''}. See Account, My accounts for its progress.</p>`
+    : `<div class="filters"><select id="nbatch" class="field" style="width:auto"><option>25</option><option>100</option><option>250</option><option selected>500</option></select>
+      <button class="btn primary" id="runbatch" ${S.job || !left ? 'disabled' : ''}>${S.job ? 'Analysing' : 'Analyse newest games'}</button>
+      <button class="btn" id="runall" ${S.job || analysed >= total ? 'disabled' : ''}>Analyse entire history</button></div>
+      <p class="faint" style="font-size:.88rem">Runs in this tab and is saved as it goes, so you can stop and continue later. A whole history takes many hours in a browser. A tracked account does it on a server instead.</p>`}
   </div></section>
 
   ${tp.length ? `<section class="sec"><div class="lead"><h2>Where to improve first</h2><p>The three biggest leaks in this selection. <a href="#/style">See all tips</a></p></div>
@@ -81,4 +82,6 @@ export default function (root) {
   if (m.n) { lineChart(root.querySelector('#rc'), ratingSeries(cur, f.classes)); heatmap(root.querySelector('#heat'), S.games.filter(g => f.classes.has(g.cls))) }
   const rb = root.querySelector('#runbatch')
   if (rb) rb.onclick = () => startBatch(+root.querySelector('#nbatch').value)
+  const ra = root.querySelector('#runall')
+  if (ra) ra.onclick = () => startAll()
 }

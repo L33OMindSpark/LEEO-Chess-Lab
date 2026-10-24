@@ -27,7 +27,7 @@ ok(await fails(() => as('anon', A, `select * from worker_key`)), 'worker_key unr
 const job = (await as('anon', '', `select worker_claim('s3cret') j`)).rows[0].j
 ok(job && job.user, 'worker claims a job: ' + JSON.stringify(job))
 await as('anon', '', `select worker_put_months('s3cret', $1, '{"2026/10":[{"id":"1"}]}'::jsonb)`, [job.id])
-await as('anon', '', `select worker_put_analysis('s3cret', $1, 'g1', '{"ev":[1]}'::jsonb)`, [job.id])
+await as('anon', '', `select worker_put_analysis('s3cret', $1, 'g1', '{"ev":[1]}'::jsonb, '{"acc":90}'::jsonb)`, [job.id])
 await as('anon', '', `select worker_status('s3cret', $1, 'ready', 10, 1, 1, null, true)`, [job.id])
 ok((await as('authenticated', A, `select count(*) c from games_months`)).rows[0].c == 1, 'A reads own months')
 ok((await as('authenticated', B, `select count(*) c from analyses`)).rows[0].c == 0, 'B cannot read A analyses')

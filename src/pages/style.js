@@ -7,9 +7,9 @@ import { filterHTML, bindFilter, winLabel } from '../ui.js'
 export const refresh = true
 
 export default function (root) {
-  const f = S.filter, cur = slice(S.games, f), m = metrics(cur, S.an), st = style(cur, m)
+  const f = S.filter, cur = slice(S.games, f), m = metrics(cur, S.sm), st = style(cur, m)
   const list = m.n >= 15 ? tips(cur, m) : []
-  const cols = WINDOWS.filter(w => w[0]).map(([win, l]) => ({ l: l.replace('Last ', ''), m: metrics(slice(S.games, { win, classes: f.classes }), S.an) }))
+  const cols = WINDOWS.filter(w => w[0]).map(([win, l]) => ({ l: l.replace('Last ', ''), m: metrics(slice(S.games, { win, classes: f.classes }), S.sm) }))
   root.innerHTML = `<div class="phead"><div><h1>Playstyle and tips</h1><p>Built from your games over ${winLabel()}. All rules run on this computer.</p></div>${filterHTML()}</div>
   ${m.n < 15 ? `<div class="panel"><p class="empty">At least 15 games are needed for a reliable read. Choose a longer period.</p></div>` : `
   <div class="grid g21">

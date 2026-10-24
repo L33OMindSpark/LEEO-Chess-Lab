@@ -1,5 +1,4 @@
 import { mean } from './util.js'
-import { myGame } from './analyze.js'
 
 export const WINDOWS = [[1, 'Last 24 hours', '24h'], [7, 'Last 7 days', '7d'], [30, 'Last 30 days', '30d'], [90, 'Last 90 days', '90d'], [365, 'Last 12 months', '12m'], [0, 'All time', 'All']]
 export const CLASSES = ['rapid', 'blitz', 'bullet', 'daily']
@@ -22,37 +21,35 @@ export function group(set, key) {
   return m
 }
 
-const memo = new WeakMap()
-const mg = (g, a) => memo.get(a) || (memo.set(a, myGame(g, a)), memo.get(a))
+const sum = (rows, f) => rows.reduce((t, r) => t + f(r.s), 0)
+const sumA = (rows, k, i) => rows.reduce((t, r) => t + r.s[k][i], 0)
 
-export function engineStats(set, an) {
-  const rows = set.filter(g => an[g.id]).map(g => ({ g, m: mg(g, an[g.id]) }))
+// sm = per-game summaries (see analyze.js summarize)
+export function engineStats(set, sm) {
+  const rows = set.filter(g => sm[g.id]).map(g => ({ g, s: sm[g.id] }))
   if (!rows.length) return null
-  const mv = rows.flatMap(r => r.m.mine)
-  const per = ph => { const x = mv.filter(m => m.ph === ph); return { n: x.length, err: x.filter(m => m.loss >= 20).length, blunders: x.filter(m => m.loss >= 30).length } }
-  const ph = [per(0), per(1), per(2)]
-  const win = rows.filter(r => r.m.maxWin >= 80), lost = rows.filter(r => r.m.minWin <= 20)
-  const press = mv.filter(m => m.pressure), calm = mv.filter(m => !m.pressure && m.spent != null)
-  const rate = x => (x.length ? x.filter(m => m.loss >= 20).length / x.length : 0)
-  const aheadErr = mv.filter(m => m.before >= 70 && m.loss >= 20).length
-  const timed = mv.filter(m => m.spent != null)
+  const moves = sum(rows, s => s.mv[0] + s.mv[1] + s.mv[2])
+  const ph = [0, 1, 2].map(p => ({ n: sumA(rows, 'mv', p), err: sumA(rows, 'ms', p) + sumA(rows, 'bl', p), blunders: sumA(rows, 'bl', p) }))
+  const win = rows.filter(r => r.s.mx >= 80), lost = rows.filter(r => r.s.mn <= 20)
+  const pm = sum(rows, s => s.pm), cm = sum(rows, s => s.cm), tn = sum(rows, s => s.tn)
+  const bl = sum(rows, s => s.bl[0] + s.bl[1] + s.bl[2]), er = ph[0].err + ph[1].err + ph[2].err
   return {
-    games: rows.length, moves: mv.length, acc: mean(rows.map(r => r.m.acc)),
-    accW: mean(rows.filter(r => r.g.me === 'w').map(r => r.m.acc)), accB: mean(rows.filter(r => r.g.me === 'b').map(r => r.m.acc)),
-    count: c => mv.filter(m => m.cls === c).length,
-    per100: (mv.filter(m => m.loss >= 30).length / mv.length) * 100,
-    err100: (mv.filter(m => m.loss >= 20).length / mv.length) * 100,
+    games: rows.length, moves, acc: mean(rows.map(r => r.s.acc)),
+    accW: mean(rows.filter(r => r.g.me === 'w').map(r => r.s.acc)), accB: mean(rows.filter(r => r.g.me === 'b').map(r => r.s.acc)),
+    count: c => (c === 'blunder' ? bl : c === 'mistake' ? sum(rows, s => s.ms[0] + s.ms[1] + s.ms[2]) : sum(rows, s => s.ia[0] + s.ia[1] + s.ia[2])),
+    per100: moves ? (bl / moves) * 100 : 0, err100: moves ? (er / moves) * 100 : 0,
     ph, phRate: ph.map(p => (p.n ? (p.err / p.n) * 100 : 0)),
     winGames: win.length, converted: win.filter(r => r.g.score === 1).length,
     lostGames: lost.length, saved: lost.filter(r => r.g.score >= 0.5).length,
-    aheadErr, pressureMoves: press.length, pressureRate: rate(press) * 100, calmRate: rate(calm) * 100,
-    avgSpent: timed.length ? mean(timed.map(m => m.spent)) : null,
-    clocks: rows.filter(r => r.g.cls !== 'daily').length > 0 && timed.length > 0,
-    outOfBook: rows.filter(r => r.m.mine.length > 8 && r.m.mine[8].before < 40).length,
+    aheadErr: sum(rows, s => s.ae), pressureMoves: pm, pressureRate: pm ? (sum(rows, s => s.pe) / pm) * 100 : 0,
+    calmRate: cm ? (sum(rows, s => s.ce) / cm) * 100 : 0,
+    avgSpent: tn ? sum(rows, s => s.ts) / tn : null, clocks: tn > 0,
+    blundersTimed: sum(rows, s => s.bt), fastBlunders: sum(rows, s => s.fb),
+    outOfBook: sum(rows, s => s.oob),
   }
 }
 
-export function metrics(set, an) {
+export function metrics(set, sm) {
   const n = set.length
   const o = wdl(); set.forEach(g => addTo(o, g))
   const byCls = {}
@@ -62,7 +59,7 @@ export function metrics(set, an) {
   }
   const main = Object.keys(byCls).sort((a, b) => byCls[b].n - byCls[a].n)[0] || null
   const losses = set.filter(g => g.score === 0), wins = set.filter(g => g.score === 1)
-  const e = engineStats(set, an)
+  const e = engineStats(set, sm)
   const caList = set.filter(g => g.ca != null).map(g => g.ca)
   const useE = e && e.games >= 5
   const acc = useE ? e.acc : caList.length >= 5 ? mean(caList) : null
@@ -154,9 +151,29 @@ export function ratingSeries(all, classes, maxPts = 260) {
   }).filter(s => s.pts.length > 1)
 }
 
-export function horizons(all, classes, an) {
+export function horizons(all, classes, sm) {
   return WINDOWS.filter(w => w[0]).map(([win, label]) => {
-    const f = { win, classes }, c = metrics(slice(all, f), an), p = metrics(slice(all, f, 1), an)
+    const f = { win, classes }, c = metrics(slice(all, f), sm), p = metrics(slice(all, f, 1), sm)
     return { win, label, cur: c, prev: p, verdict: verdict(c, p) }
   })
+}
+
+// Everything the engine knows about the selected games, for the Engine report page.
+export function engineReport(set, sm) {
+  const rows = set.filter(g => sm[g.id]).map(g => ({ g, s: sm[g.id] }))
+  if (!rows.length) return null
+  const byMonth = new Map()
+  for (const r of rows) { const k = new Date(r.g.t * 1000).toISOString().slice(0, 7); (byMonth.get(k) || byMonth.set(k, []).get(k)).push(r.s.acc) }
+  const monthly = [...byMonth].sort().map(([k, a]) => ({ k, n: a.length, acc: mean(a) }))
+  const byClass = CLASSES.map(c => { const x = rows.filter(r => r.g.cls === c); return { label: c[0].toUpperCase() + c.slice(1), n: x.length, acc: mean(x.map(r => r.s.acc)) } }).filter(x => x.n)
+  const opens = []
+  for (const color of ['w', 'b']) {
+    const m = new Map()
+    for (const r of rows) if (r.g.me === color && r.s.e10 != null && r.g.fam !== 'Unknown') (m.get(r.g.fam) || m.set(r.g.fam, []).get(r.g.fam)).push(r)
+    for (const [fam, x] of m) if (x.length >= 6) opens.push({ fam, color, n: x.length, e10: mean(x.map(r => r.s.e10)), acc: mean(x.map(r => r.s.acc)), score: (x.reduce((t, r) => t + r.g.score, 0) / x.length) * 100 })
+  }
+  opens.sort((a, b) => a.e10 - b.e10)
+  const costly = rows.flatMap(r => r.s.errs.map(e => ({ g: r.g, i: e[0], loss: e[1], played: e[2], best: e[3] }))).sort((a, b) => b.loss - a.loss).slice(0, 12)
+  const swing = rows.filter(r => r.s.mx >= 80 && r.g.score < 1).length
+  return { monthly, byClass, opens, costly, swing, total: rows.length, e: engineStats(set, sm) }
 }

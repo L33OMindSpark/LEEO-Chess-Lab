@@ -1,8 +1,8 @@
 import { Chessground } from 'chessground'
 import { Chess } from 'chess.js'
-import { S, analyseOne } from '../state.js'
+import { S, analyseOne, getFull } from '../state.js'
 import { Engine } from '../engine.js'
-import { parseGame, judge, winPct } from '../analyze.js'
+import { parseGame, fromAnalysis, judge, winPct } from '../analyze.js'
 import { evalGraph } from '../charts.js'
 import { esc, dateStr } from '../util.js'
 import { HOW } from '../ui.js'
@@ -20,11 +20,12 @@ function sanLine(fen, pv) {
 
 export default async function (root, ctx, id) {
   const g = S.games.find(x => x.id === id)
-  if (!g || !g.pgn) { root.innerHTML = '<div class="panel"><p class="empty">That game is not in the reviewable set. <a href="#/games">Back to games</a></p></div>'; return }
-  const p = parseGame(g)
+  let a = g && S.sm[id] ? await getFull(id) : null
+  if (!g || (!g.pgn && !a)) { root.innerHTML = '<div class="panel"><p class="empty">That game has no saved moves yet. Analyse it from the overview page first. <a href="#/games">Back to games</a></p></div>'; return }
+  const p = a ? fromAnalysis(a) : parseGame(g)
   if (!p) { root.innerHTML = '<div class="panel"><p class="err">This game could not be read.</p></div>'; return }
   const n = p.fens.length
-  let a = S.an[id], J = a ? judge(a) : [], ply = n - 1, flip = g.me === 'b', showBest = true
+  let J = a ? judge(a) : [], ply = n - 1, flip = g.me === 'b', showBest = true
   const names = g.me === 'w' ? [S.user, g.oppName] : [g.oppName, S.user], rate = g.me === 'w' ? [g.my, g.opp] : [g.opp, g.my]
   const outcome = g.score === 1 ? 'You won' : g.score === 0 ? 'You lost' : 'Draw'
 

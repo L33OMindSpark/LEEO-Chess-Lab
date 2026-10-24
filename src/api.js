@@ -48,7 +48,7 @@ export function norm(g, user) {
 }
 
 // Reads the whole archive (cached per month), newest first. since = 'YYYY/MM' or ''.
-export async function loadGames(user, since, onProgress) {
+export async function loadGames(user, since, onProgress, keep = KEEP_PGN) {
   const { archives } = await j(`${B}${user}/games/archives`)
   let list = archives.map(u => u.split('/').slice(-2).join('/')).filter(ym => !since || ym >= since).reverse()
   const d = new Date(), ym = (y, m) => `${y}/${String(m).padStart(2, '0')}`
@@ -67,8 +67,17 @@ export async function loadGames(user, since, onProgress) {
       onProgress(++done, list.length)
     }
   }))
+  for (const m of fresh) await kvSet(`m:${user}:${m}`, months[m]) // cached with moves, so "analyse everything" never has to download twice
   const all = list.flatMap(m => months[m]).sort((a, b) => b.t - a.t)
-  all.forEach((g, k) => { if (k >= KEEP_PGN) delete g.pgn })
-  for (const m of fresh) await kvSet(`m:${user}:${m}`, months[m])
+  all.forEach((g, k) => { if (k >= keep) delete g.pgn })
   return all
+}
+
+// One month with its move lists (for analysing older games), and the list of months, newest first.
+export async function archiveMonths(user) {
+  const { archives } = await j(`${B}${user}/games/archives`)
+  return archives.map(u => u.split('/').slice(-2).join('/')).reverse()
+}
+export async function loadMonth(user, ym) {
+  return (await j(`${B}${user}/games/${ym}`)).games.map(g => norm(g, user)).filter(Boolean).sort((a, b) => b.t - a.t)
 }

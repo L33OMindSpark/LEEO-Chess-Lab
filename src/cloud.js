@@ -39,20 +39,24 @@ export const addAccount = (chess_username, depth = 14) => api('tracked_accounts'
 export const retry = id => api(`tracked_accounts?id=eq.${id}`, { method: 'PATCH', body: { status: 'pending' } })
 export const remove = id => api(`tracked_accounts?id=eq.${id}`, { method: 'DELETE' })
 
-// Everything the job saved for one account. Cached until the job saves something new.
+// Games plus one small summary per analysed game. Cached until the job saves something new.
 export async function loadAccountData(acc) {
   const key = `cloud:${acc.id}:${acc.refreshed_at}:${acc.analysed}`
   const hit = await kvGet(key)
   if (hit) return hit
   const months = await api(`games_months?account_id=eq.${acc.id}&select=ym,data&limit=1000`)
   const games = months.flatMap(m => m.data).sort((a, b) => b.t - a.t)
-  const an = {}
-  for (let o = 0; ; o += 300) {
-    const rows = await api(`analyses?account_id=eq.${acc.id}&select=game_id,data&order=game_id&limit=300&offset=${o}`)
-    rows.forEach(r => (an[r.game_id] = r.data))
-    if (rows.length < 300) break
+  const sm = {}
+  for (let o = 0; ; o += 1000) {
+    const rows = await api(`analyses?account_id=eq.${acc.id}&select=game_id,summary&order=game_id&limit=1000&offset=${o}`)
+    rows.forEach(r => (sm[r.game_id] = r.summary))
+    if (rows.length < 1000) break
   }
-  const out = { games, an }
+  const out = { games, sm }
   await kvSet(key, out)
   return out
+}
+export async function loadFull(accountId, gameId) {
+  const r = await api(`analyses?account_id=eq.${accountId}&game_id=eq.${encodeURIComponent(gameId)}&select=data`)
+  return r[0]?.data || null
 }

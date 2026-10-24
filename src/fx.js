@@ -9,7 +9,7 @@ function countUp(el) {
   if (reduced || !isFinite(end)) return
   const tick = t => {
     const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 4)
-    el.textContent = (end * e).toLocaleString('en', { minimumFractionDigits: dec, maximumFractionDigits: dec })
+    el.textContent = (end * e).toLocaleString('en', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + (el.dataset.suf || '')
     if (p < 1) requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)

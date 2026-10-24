@@ -37,4 +37,5 @@ jobs:
           STOCKFISH_CMD: /usr/games/stockfish
           MAX_MINUTES: "45"
           THREADS: "3"
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node worker/run.mjs

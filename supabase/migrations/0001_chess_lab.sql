@@ -28,8 +28,10 @@ create table if not exists public.analyses (
   account_id uuid not null references public.tracked_accounts(id) on delete cascade,
   game_id text not null,
   data jsonb not null,
+  summary jsonb not null default '{}',
   primary key (account_id, game_id)
 );
+alter table public.analyses add column if not exists summary jsonb not null default '{}';
 
 -- holds the sha256 of the worker secret; no policies, so nobody can read it through the API
 create table if not exists public.worker_key (h text not null);
@@ -103,12 +105,12 @@ begin
     on conflict (account_id, ym) do update set data = excluded.data;
 end $$;
 
-create or replace function public.worker_put_analysis(secret text, acc uuid, gid text, d jsonb) returns void
+create or replace function public.worker_put_analysis(secret text, acc uuid, gid text, d jsonb, s jsonb) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   if not public._worker_ok(secret) then raise exception 'denied'; end if;
-  insert into public.analyses (account_id, game_id, data) values (acc, gid, d)
-    on conflict (account_id, game_id) do update set data = excluded.data;
+  insert into public.analyses (account_id, game_id, data, summary) values (acc, gid, d, s)
+    on conflict (account_id, game_id) do update set data = excluded.data, summary = excluded.summary;
 end $$;
 
 create or replace function public.worker_done_ids(secret text, acc uuid) returns text[]
@@ -119,6 +121,6 @@ begin
 end $$;
 
 revoke all on function public.worker_claim(text), public.worker_status(text, uuid, text, int, int, int, text, boolean),
-  public.worker_put_months(text, uuid, jsonb), public.worker_put_analysis(text, uuid, text, jsonb), public.worker_done_ids(text, uuid) from public;
+  public.worker_put_months(text, uuid, jsonb), public.worker_put_analysis(text, uuid, text, jsonb, jsonb), public.worker_done_ids(text, uuid) from public;
 grant execute on function public.worker_claim(text), public.worker_status(text, uuid, text, int, int, int, text, boolean),
-  public.worker_put_months(text, uuid, jsonb), public.worker_put_analysis(text, uuid, text, jsonb), public.worker_done_ids(text, uuid) to anon, authenticated;
+  public.worker_put_months(text, uuid, jsonb), public.worker_put_analysis(text, uuid, text, jsonb, jsonb), public.worker_done_ids(text, uuid) to anon, authenticated;

@@ -19,22 +19,23 @@ export function lineChart(el, series) {
   if (!xs.length) { el.innerHTML = '<p class="empty">No rating data in this selection.</p>'; return }
   const x0 = Math.min(...xs), x1 = Math.max(...xs)
   mon = x1 - x0 < 200 * 86400 ? t => new Date(t * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : t => new Date(t * 1000).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
-  let y0 = Math.floor(Math.min(...ys) / 100) * 100, y1 = Math.ceil(Math.max(...ys) / 100) * 100
-  if (y1 - y0 < 200) { y0 -= 100; y1 += 100 }
+  const lo = Math.min(...ys), hi = Math.max(...ys)
+  const step = [1, 2, 5, 10, 25, 50, 100].find(v => (hi - lo || 1) / v <= 5) || 100
+  let y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi / step) * step
+  if (y1 === y0) y1 += step
   const X = t => m.l + ((t - x0) / (x1 - x0 || 1)) * (W - m.l - m.r), Y = v => H - m.b - ((v - y0) / (y1 - y0)) * (H - m.t - m.b)
-  const step = Math.ceil((y1 - y0) / 4 / 50) * 50
   let g = ''
   for (let v = y0; v <= y1; v += step) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${m.l - 8}" y="${Y(v) + 4}" class="ax" text-anchor="end">${v}</text>`
   for (let i = 0; i < 5; i++) { const t = x0 + ((x1 - x0) * i) / 4; g += `<text x="${X(t)}" y="${H - 8}" class="ax" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}">${mon(t)}</text>` }
-  const paths = series.map(s => `<path class="line" pathLength="1" d="${s.pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="var(--c-${s.key})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')
-  el.innerHTML = `<div class="legend">${series.map(s => `<span><i style="background:var(--c-${s.key})"></i>${s.name}</span>`).join('')}</div>` + svg(W, H, g + paths + '<g class="hov"></g><rect class="hit" x="0" y="0" width="' + W + '" height="' + H + '" fill="transparent"/>')
+  const paths = series.map(s => `<path class="line" pathLength="1" d="${s.pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${s.color || `var(--c-${s.key})`}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')
+  el.innerHTML = `<div class="legend">${series.map(s => `<span><i style="background:${s.color || `var(--c-${s.key})`}"></i>${s.name}</span>`).join('')}</div>` + svg(W, H, g + paths + '<g class="hov"></g><rect class="hit" x="0" y="0" width="' + W + '" height="' + H + '" fill="transparent"/>')
   const s = el.querySelector('svg'), hov = s.querySelector('.hov')
   s.addEventListener('mousemove', ev => {
     const r = s.getBoundingClientRect(), t = x0 + ((((ev.clientX - r.left) / r.width) * W - m.l) / (W - m.l - m.r)) * (x1 - x0)
     const near = series.map(se => ({ se, p: se.pts.reduce((b, p) => (Math.abs(p[0] - t) < Math.abs(b[0] - t) ? p : b)) }))
     const tx = X(near.reduce((b, n) => (Math.abs(n.p[0] - t) < Math.abs(b.p[0] - t) ? n : b)).p[0])
-    hov.innerHTML = `<line x1="${tx}" x2="${tx}" y1="${m.t}" y2="${H - m.b}" class="cross"/>` + near.map(n => `<circle cx="${X(n.p[0])}" cy="${Y(n.p[1])}" r="4" fill="var(--c-${n.se.key})" stroke="var(--surface)" stroke-width="2"/>`).join('')
-    showTip(`<b>${new Date(near[0].p[0] * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</b>` + near.map(n => `<div><i style="background:var(--c-${n.se.key})"></i>${n.se.name} ${n.p[1]}</div>`).join(''), ev)
+    hov.innerHTML = `<line x1="${tx}" x2="${tx}" y1="${m.t}" y2="${H - m.b}" class="cross"/>` + near.map(n => `<circle cx="${X(n.p[0])}" cy="${Y(n.p[1])}" r="4" fill="${n.se.color || `var(--c-${n.se.key})`}" stroke="var(--surface)" stroke-width="2"/>`).join('')
+    showTip(`<b>${new Date(near[0].p[0] * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</b>` + near.map(n => `<div><i style="background:${n.se.color || `var(--c-${n.se.key})`}"></i>${n.se.name} ${n.p[1]}</div>`).join(''), ev)
   })
   s.addEventListener('mouseleave', () => { hov.innerHTML = ''; hideTip() })
 }

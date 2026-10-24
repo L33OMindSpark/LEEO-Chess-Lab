@@ -11,7 +11,7 @@ A login plus background analysis (free Supabase, GitHub Actions and Cloudflare) 
 
 ## How it works
 - Games come from the free public chess.com API. Each month is cached in the browser, so repeat visits are instant.
-- Only the newest 500 games keep their move list (for review and engine analysis). Older games still count for all rating, opening and habit statistics.
+- In the browser, the newest 500 games can be analysed straight away and the whole history can be analysed month by month (slow). A tracked account analyses the entire history on a server. Every analysed game is reduced to a small summary that all statistics are built from, and the full move-by-move record is loaded only when you open a game.
 - Stockfish 19 (lite, WASM) runs in background workers. Results are saved per game and the batch can be stopped and resumed.
 - Tips are plain rules over your own numbers. Accuracy and mistake classes follow the Lichess win-chance model.
 - Settings menu: engine depth, how much history to read, and deleting saved data.

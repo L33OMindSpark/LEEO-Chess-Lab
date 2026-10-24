@@ -14,7 +14,8 @@ const a = db.accounts[0]
 console.log(a)
 assert.equal(code, 0); assert.equal(a.status, 'ready'); assert.ok(a.games_total > 0)
 assert.equal(Object.keys(db.analyses.acc1 || {}).length, 3)
-const rec = Object.values(db.analyses.acc1)[0]
+const rec = Object.values(db.analyses.acc1)[0].d
+assert.ok(Object.values(db.analyses.acc1)[0].s.mv.length === 3, 'summary saved')
 assert.ok(rec.ev.length > 10 && rec.ucis.split(' ').length === rec.ev.length - 1)
 console.log('selftest ok:', a.games_total, 'games read,', Object.keys(db.analyses.acc1).length, 'analysed')
 server.close()

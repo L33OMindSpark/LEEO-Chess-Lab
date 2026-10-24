@@ -86,3 +86,32 @@ export function myGame(g, a) {
     errors: mine.filter(m => m.loss >= 20),
   }
 }
+
+// Rebuilds the positions of an analysed game from its stored moves (no PGN needed).
+export function fromAnalysis(a) {
+  const c = new Chess(), fens = [c.fen()], sans = a.sans.split(' ')
+  for (const m of sans) { c.move(m); fens.push(c.fen()) }
+  return { fens, sans, ucis: a.ucis.split(' '), clk: a.clk || [], ph: a.ph }
+}
+
+// A few hundred bytes per game that every statistic can be built from, so the full records are only
+// fetched when you open a game or train on it.
+export function summarize(g, a) {
+  const m = myGame(g, a), mine = m.mine, ucis = a.ucis.split(' ')
+  const per = k => [0, 1, 2].map(p => mine.filter(x => x.ph === p && x.cls === k).length)
+  const timed = mine.filter(x => x.spent != null), sign = g.me === 'w' ? 1 : -1
+  const blunders = mine.filter(x => x.loss >= 30)
+  return {
+    v: 1, d: a.d, acc: +m.acc.toFixed(1),
+    mv: [0, 1, 2].map(p => mine.filter(x => x.ph === p).length), ia: per('inaccuracy'), ms: per('mistake'), bl: per('blunder'),
+    mx: Math.round(m.maxWin), mn: Math.round(m.minWin),
+    ae: mine.filter(x => x.before >= 70 && x.loss >= 20).length,
+    pm: mine.filter(x => x.pressure).length, pe: mine.filter(x => x.pressure && x.loss >= 20).length,
+    cm: mine.filter(x => !x.pressure && x.spent != null).length, ce: mine.filter(x => !x.pressure && x.spent != null && x.loss >= 20).length,
+    ts: Math.round(timed.reduce((t, x) => t + x.spent, 0)), tn: timed.length,
+    bt: blunders.filter(x => x.spent != null).length, fb: blunders.filter(x => x.spent != null && x.spent < 3).length,
+    e10: a.ev.length > 20 ? Math.round(winPct(sign * a.ev[20])) : null,
+    oob: mine.length > 8 && mine[8].before < 40 ? 1 : 0,
+    errs: mine.filter(x => x.loss >= 20 && x.before >= 25 && a.best[x.i] && a.best[x.i] !== ucis[x.i]).map(x => [x.i, Math.round(x.loss), ucis[x.i], a.best[x.i]]),
+  }
+}

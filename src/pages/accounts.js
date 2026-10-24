@@ -38,7 +38,7 @@ export async function accounts(root, ctx, open) {
   if (!cloud.signedIn()) { location.hash = '#/login'; return }
   let list = [], msg = ''
   const draw = () => {
-    root.innerHTML = `<div class="phead"><div><h1>Your accounts</h1><p>Add a chess.com username and the server reads every game and runs Stockfish on the newest 500. It looks for new work every 30 minutes and refreshes finished accounts twice a day. Close this page whenever you like and come back when it says ready.</p></div>
+    root.innerHTML = `<div class="phead"><div><h1>Your accounts</h1><p>Add a chess.com username and the server reads every game and runs Stockfish on all of them, newest first. It looks for new work every 30 minutes and refreshes finished accounts twice a day. Close this page whenever you like and come back when it says ready.</p></div>
       <span class="muted">${esc(cloud.email() || '')}</span></div>
     <div class="stack"><section class="card"><form id="af" class="filters"><input id="au" class="field" style="width:280px" placeholder="chess.com username" spellcheck="false" required>
       <select id="ad" class="field" style="width:auto"><option value="12">Depth 12, faster</option><option value="14" selected>Depth 14, balanced</option><option value="16">Depth 16, deeper</option></select><button class="btn primary">Track account</button></form>

@@ -41,3 +41,13 @@ export async function kvScan(prefix) {
     q.onerror = () => res(out)
   })
 }
+export async function kvKeys(prefix) {
+  if (!has) return []
+  const d = await db()
+  return new Promise(res => {
+    const out = []
+    const q = d.transaction('kv').objectStore('kv').openKeyCursor(IDBKeyRange.bound(prefix, prefix + '\uffff'))
+    q.onsuccess = () => { const c = q.result; if (c) { out.push(c.key.slice(prefix.length)); c.continue() } else res(out) }
+    q.onerror = () => res(out)
+  })
+}

@@ -1,6 +1,6 @@
 # Putting LEEO Chess Lab online (login plus background analysis)
 
-What you get: a website with a login. You add a chess.com username, a free background job reads every game and runs Stockfish on the newest 500, and you sign in later to see the results. Everything uses free plans, the same three services as Mind Spark. Nothing is pushed or deployed until you say so.
+What you get: a website with a login. You add a chess.com username, a free background job reads every game and runs Stockfish on all of them, newest first, and you sign in later to see the results. Everything uses free plans, the same three services as Mind Spark. Nothing is pushed or deployed until you say so.
 
 How the pieces fit:
 - **Supabase** keeps the login, the tracked usernames, the games and the engine results.
@@ -58,7 +58,7 @@ The quick version of the site (no login, runs in the browser) keeps working with
 5. Back in Supabase: **Authentication, then URL Configuration**, set **Site URL** to that address.
 
 ## Using it
-Open the site, **Sign in**, then **Account, My accounts**, type a username and **Track account**. The status goes from waiting to reading to analysing to ready. The job checks every 30 minutes, so the first start can take up to half an hour, and 500 games take about an hour of computer time, spread over a few runs automatically. Close the page, come back later, press **Open**. Finished accounts refresh themselves twice a day.
+Open the site, **Sign in**, then **Account, My accounts**, type a username and **Track account**. The status goes from waiting to reading to analysing to ready. The job checks every 30 minutes, so the first start can take up to half an hour, and a big history takes a few hours of computer time (16,000 games is roughly 5 to 10 hours), spread over several runs automatically. The newest games are done first, so the site is useful long before it finishes. Close the page, come back later, press **Open**. Finished accounts refresh themselves twice a day.
 
 ## Good to know (free plans)
 - Supabase pauses a project nobody has used for a week. The 30 minute job counts as use, so it stays awake. If it ever shows a **Restore** button, press it.

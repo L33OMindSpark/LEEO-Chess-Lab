@@ -26,7 +26,7 @@ export default function (root, ctx, { begin, signIn }) {
   root.innerHTML = `
   <section class="hero"><div class="hero-l">
     <h1 class="hin" style="--d:.05s">See how you really play chess.</h1>
-    <p class="lead hin" style="--d:.18s">Enter a chess.com username. Every public game is read, Stockfish reviews the newest ones, and you get your real level, your openings, your habits and a plain verdict on whether you are improving.</p>
+    <p class="lead hin" style="--d:.18s">Enter a chess.com username. Every public game is read and reviewed by Stockfish, newest first, and you get your real level, your openings, your habits and a plain verdict on whether you are improving.</p>
     <form id="hform" class="hin" style="--d:.3s"><input id="huser" class="field" placeholder="chess.com username" value="${esc(last)}" aria-label="chess.com username" spellcheck="false" autocomplete="off"><button class="btn primary big">Analyse games</button></form>
     <p class="note hin" style="--d:.4s">Runs in your browser. Nothing is uploaded and no account is needed.${cloud.enabled ? ` Prefer to let a server do the work in the background? <a href="#/${cloud.signedIn() ? 'accounts' : 'login'}">${cloud.signedIn() ? 'Open your accounts' : 'Sign in'}</a>.` : ''}</p>
   </div>
@@ -59,7 +59,7 @@ export default function (root, ctx, { begin, signIn }) {
 
   ${cloud.enabled ? `<section class="modes"><div class="wrap">
     <div class="mode" data-rv><h3>Quick analysis</h3><p>Type a username and watch it work in this tab. Everything stays in your browser and is saved as it goes.</p><button class="btn big" data-focus>Start now</button></div>
-    <div class="mode dark" data-rv><h3>Tracked accounts</h3><p>Sign in, add your username, and a server reads every game and runs Stockfish while you are away. Come back when it says ready.</p><a class="btn primary big" href="#/${cloud.signedIn() ? 'accounts' : 'login'}">${cloud.signedIn() ? 'Open your accounts' : 'Sign in'}</a></div></div></section>`
+    <div class="mode dark" data-rv><h3>Tracked accounts</h3><p>Sign in, add your username, and a server reads every game and runs Stockfish on all of them while you are away. Come back when it says ready.</p><a class="btn primary big" href="#/${cloud.signedIn() ? 'accounts' : 'login'}">${cloud.signedIn() ? 'Open your accounts' : 'Sign in'}</a></div></div></section>`
   : `<section class="cta"><div class="wrap" data-rv><h2>Ready to see your own games?</h2><p>It takes a minute for a big account, and every month is saved so the next visit is instant.</p><button class="btn primary big" data-focus>Analyse a username</button></div></section>`}
 
   <footer class="foot"><div class="wrap"><div><div class="brand"><span class="mark"></span><b>LEEO</b><span>Chess Lab</span></div>
