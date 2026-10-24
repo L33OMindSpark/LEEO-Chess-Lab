@@ -1,94 +1,140 @@
 import './style.css'
 import 'chessground/assets/chessground.base.css'
 import 'chessground/assets/chessground.cburnett.css'
-import { Chessground } from 'chessground'
 import { S, emit, loadAnalyses, stopBatch } from './state.js'
 import { getProfile, getStats, loadGames } from './api.js'
 import * as cloud from './cloud.js'
-import { login as loginPage, accounts as accountsPage } from './pages/accounts.js'
-import { $, esc, kvClear } from './util.js'
+import { $, esc, sleep, kvClear } from './util.js'
+import { enhance, initScroll } from './fx.js'
+import home from './pages/home.js'
 import overview, * as ovMod from './pages/overview.js'
 import style, * as stMod from './pages/style.js'
 import openings from './pages/openings.js'
 import habits, * as hbMod from './pages/habits.js'
 import games, * as gmMod from './pages/games.js'
+import { login as loginPage, accounts as accountsPage } from './pages/accounts.js'
 
-const app = $('#app'), DEFAULT_USER = 'leeoonchess'
-let cleanups = [], current = null
-app.addEventListener('rerender', () => { const y = scrollY; render().then(() => scrollTo(0, y)) })
+const app = $('#app'), main = $('main')
+let cleanups = [], current = null, token = 0, firstRender = true
 const pages = { overview: [overview, ovMod], style: [style, stMod], openings: [openings, {}], habits: [habits, hbMod], games: [games, gmMod] }
+const GROUP = { overview: 'insights', style: 'insights', openings: 'insights', habits: 'insights', games: 'games', review: 'games', train: 'train', accounts: 'account', login: 'account' }
 
+// ---------- navigation bar ----------
+const item = (href, t, d, extra = '') => `<a href="${href}" ${extra}><b>${t}</b><span>${d}</span></a>`
+const dd = (id, title, items, group, right) => `<div class="dd ${group === id ? 'on' : ''}"><button aria-haspopup="true">${title}</button><div class="mw ${right ? 'right' : ''}"><div class="menu">${items}</div></div></div>`
+
+function syncNav(name) {
+  const loaded = S.games.length > 0, group = GROUP[name]
+  const settings = dd('set', 'Settings', `<div class="set"><label>Engine depth<select id="depth">${[[10, '10, fast'], [12, '12, balanced'], [14, '14, deeper'], [16, '16, slow']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
+    <label>History to read<select id="since"><option value="">Everything</option><option value="2y">Last 2 years</option><option value="1y">Last year</option></select></label>
+    <button type="button" id="clear" class="linkish">Delete saved data on this computer</button></div>`, group, true)
+  const acct = cloud.enabled ? dd('account', 'Account', cloud.signedIn()
+    ? item('#/accounts', 'My accounts', 'Tracked usernames and their progress') + `<a href="#/" data-signout><b>Sign out</b><span>${esc(cloud.email() || '')}</span></a>`
+    : item('#/login', 'Sign in', 'Let a server analyse in the background'), group, true) : ''
+  $('#nav').innerHTML = loaded
+    ? dd('insights', 'Insights', item('#/overview', 'Overview', 'Level, rating history and your improvement trend') + item('#/style', 'Playstyle and tips', 'How you play and what to work on') + item('#/openings', 'Openings', 'What you play and what it earns you') + item('#/habits', 'Habits', 'When, against whom and how games end'), group)
+      + dd('games', 'Games', item('#/games', 'Game history', 'Every game, with engine review for the newest'), group)
+      + dd('train', 'Train', item('#/train', 'Blunder trainer', 'Puzzles from your own missed moves'), group) + acct + settings
+    : `<a class="navlink" href="#/" data-sc="story">How it works</a><a class="navlink" href="#/" data-sc="features">What you get</a>${acct}${settings}`
+  $('#tcta').innerHTML = loaded ? `<a class="chip" href="#/overview" style="text-decoration:none">${S.profile?.avatar ? `<img src="${esc(S.profile.avatar)}" alt="" width="20" height="20" style="border-radius:50%">` : ''}<span class="u">${esc(S.user)}</span></a>`
+    : `${cloud.enabled && !cloud.signedIn() ? '<a class="btn small pill" href="#/login">Sign in</a>' : ''}<button class="btn primary small pill" data-focus>Analyse</button>`
+  $('#uform').style.display = loaded ? '' : 'none'
+  const d = $('#depth'), sn = $('#since')
+  d.value = S.depth; sn.value = localStorage.since || ''
+  d.onchange = e => { S.depth = +e.target.value; localStorage.depth = S.depth }
+  sn.onchange = e => (localStorage.since = e.target.value)
+  $('#clear').onclick = async () => { if (confirm('Delete all saved games and analysis from this browser?')) { await kvClear(); localStorage.clear(); location.reload() } }
+  document.querySelectorAll('[data-sc]').forEach(a => (a.onclick = e => { e.preventDefault(); const go = () => document.getElementById(a.dataset.sc)?.scrollIntoView({ behavior: 'smooth' }); location.hash.replace('#', '') in { '': 1, '/': 1 } ? go() : (location.hash = '#/', setTimeout(go, 700)); document.body.classList.remove('nav-open') }))
+  document.querySelectorAll('[data-focus]').forEach(b => (b.onclick = e => { e.preventDefault(); if (location.hash.length > 2) location.hash = '#/'; setTimeout(() => { scrollTo({ top: 0, behavior: 'smooth' }); $('#huser')?.focus({ preventScroll: true }) }, 60) }))
+  document.querySelectorAll('[data-signout]').forEach(a => (a.onclick = () => { cloud.logout(); Object.assign(S, { cloud: null, games: [], an: {}, user: null }) }))
+}
+
+// ---------- loading data ----------
 const sinceVal = () => {
-  const v = $('#since').value
+  const v = localStorage.since
   if (!v) return ''
   const d = new Date(); d.setFullYear(d.getFullYear() - (v === '2y' ? 2 : 1))
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`
 }
-
-function landing(msg = '') {
-  app.innerHTML = `<div class="hero"><div><h1>See how you really play chess.</h1>
-    <p class="lead">Enter a chess.com username. Every public game is read, the newest ones go through Stockfish, and you get your real level, your openings, your habits and a plain read on whether you are improving.</p>
-    <form id="hform"><input id="huser" value="${esc(S.user || localStorage.last || DEFAULT_USER)}" aria-label="chess.com username" spellcheck="false"><button class="btn primary">Analyse</button></form>
-    ${msg ? `<p class="err" style="margin-top:12px">${esc(msg)}</p>` : ''}
-    <small>Runs in your browser. Nothing is uploaded and no account is needed.</small>
-    ${cloud.enabled ? `<p class="muted" style="margin-top:26px">Have an account? <a href="#/accounts">${cloud.signedIn() ? 'Open your tracked accounts' : 'Sign in'}</a> to let the server analyse everything in the background.</p>` : ''}</div>
-    <div><div class="board" id="hb"></div></div></div>`
-  $('#hform').onsubmit = e => { e.preventDefault(); begin($('#huser').value) }
-  Chessground($('#hb'), { fen: 'r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P1B2/2P1PN2/PP1NBPPP/R2Q1RK1 b - - 0 8', viewOnly: true, coordinates: true, drawable: { autoShapes: [{ orig: 'c5', dest: 'd4', brush: 'green' }, { orig: 'f6', dest: 'e4', brush: 'blue' }] } })
-}
-
 function pickWindow() {
   const now = Date.now() / 1000
   S.filter.win = [30, 90, 365, 0].find(w => !w || S.games.filter(g => g.t > now - w * 86400).length >= 30)
 }
-
-async function openCloud(acc) {
-  app.innerHTML = `<div class="loading"><h2>Opening ${esc(acc.chess_username)}</h2><p class="muted">Loading saved games and analysis</p><div class="bar"><i style="width:60%"></i></div></div>`
-  try {
-    const [data, p, st] = await Promise.all([cloud.loadAccountData(acc), getProfile(acc.chess_username).catch(() => null), getStats(acc.chess_username).catch(() => null)])
-    Object.assign(S, { user: acc.chess_username, cloud: acc, profile: p, stats: st, games: data.games, an: data.an })
-    pickWindow()
-    location.hash = '#/overview'
-    render()
-  } catch (e) { app.innerHTML = `<div class="loading"><h2>Could not open it</h2><p class="err">${esc(e.message)}</p><a href="#/accounts">Back to your accounts</a></div>` }
+function visit() {
+  S.lastVisit = +localStorage['visit:' + S.user] || 0
+  localStorage['visit:' + S.user] = Date.now()
 }
+const loadingView = (t, sub) => { app.innerHTML = `<div class="loading"><h2>${t}</h2><p class="muted" id="ls">${sub}</p><div class="bar"><i id="lb" style="width:3%"></i></div><p class="faint">The first read takes a while for big accounts. Every month is saved, so the next visit is instant.</p></div>`; main.classList.remove('wide') }
 
 async function begin(raw) {
-  const user = raw.trim().toLowerCase().replace(/^.*\/member\//, '')
-  if (!/^[a-z0-9_-]{2,40}$/.test(user)) return landing('Enter a valid chess.com username.')
+  const user = raw.trim().toLowerCase().replace(/^.*\/member\//, '').replace(/\/.*$/, '')
+  if (!/^[a-z0-9_-]{2,40}$/.test(user)) return flash('Enter a valid chess.com username.')
   S.user = user; S.cloud = null
-  app.innerHTML = `<div class="loading"><h2>Reading ${esc(user)}</h2><p class="muted" id="ls">Looking up the account</p><div class="bar"><i id="lb" style="width:3%"></i></div><p class="faint">The first read takes a while for big accounts. Every month is saved, so the next visit is instant.</p></div>`
+  loadingView(`Reading ${esc(user)}`, 'Looking up the account')
   try {
     ;[S.profile, S.stats] = await Promise.all([getProfile(user), getStats(user).catch(() => null)])
     S.games = await loadGames(user, sinceVal(), (d, t) => { $('#ls').textContent = `Reading the archive, month ${d} of ${t}`; $('#lb').style.width = 3 + (d / t) * 97 + '%' })
     if (!S.games.length) throw new Error('This account has no standard games to analyse.')
     await loadAnalyses()
-    pickWindow()
+    pickWindow(); visit()
     localStorage.last = user
     location.hash = '#/overview'
     render()
-  } catch (e) { S.user = null; landing(e.message) }
+  } catch (e) { S.user = null; S.games = []; location.hash = '#/'; render().then(() => flash(e.message)) }
+}
+async function openCloud(acc) {
+  loadingView(`Opening ${esc(acc.chess_username)}`, 'Loading saved games and analysis')
+  try {
+    const [data, p, st] = await Promise.all([cloud.loadAccountData(acc), getProfile(acc.chess_username).catch(() => null), getStats(acc.chess_username).catch(() => null)])
+    Object.assign(S, { user: acc.chess_username, cloud: acc, profile: p, stats: st, games: data.games, an: data.an })
+    pickWindow(); visit()
+    location.hash = '#/overview'
+    render()
+  } catch (e) { app.innerHTML = `<div class="loading"><h2>Could not open it</h2><p class="err">${esc(e.message)}</p><a href="#/accounts">Back to your accounts</a></div>` }
+}
+function flash(msg) {
+  const f = $('#hform')
+  if (!f) return
+  let e = $('#herr'); if (!e) { e = document.createElement('p'); e.id = 'herr'; e.className = 'err'; f.after(e) }
+  e.textContent = msg; f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake')
 }
 
-async function render() {
+// ---------- router ----------
+async function render(mode = 'nav') {
+  const my = ++token
   cleanups.forEach(f => f()); cleanups = []
-  const [name, arg] = location.hash.replace(/^#\/?/, '').split('/')
-  syncCloudNav()
-  if (name === 'login' || name === 'accounts') {
-    if (!cloud.enabled) return landing()
-    current = null; app.innerHTML = ''
-    return name === 'login' ? loginPage(app, { onCleanup: f => cleanups.push(f) }, h => (location.hash = h)) : accountsPage(app, { onCleanup: f => cleanups.push(f) }, openCloud)
-  }
-  if (!S.games.length) { current = null; return landing() }
-  if (!name) return (location.hash = '#/overview')
-  app.innerHTML = ''
+  const [name = '', arg] = location.hash.replace(/^#\/?/, '').split('/')
   const ctx = { onCleanup: f => cleanups.push(f) }
-  if (name === 'review') { current = {}; (await import('./pages/review.js')).default(app, ctx, arg) }
-  else if (name === 'train') { current = {}; (await import('./pages/train.js')).default(app, ctx) }
-  else { const [fn, mod] = pages[name] || pages.overview; current = mod; fn(app, ctx) }
+  const loaded = S.games.length > 0
+  let route = name
+  if (route === 'login' || route === 'accounts') { if (!cloud.enabled) route = '' }
+  else if (!loaded) route = ''
+  else if (!route || (!pages[route] && route !== 'review' && route !== 'train')) route = route === '' ? '' : 'overview'
+
+  if (mode === 'nav' && !firstRender && app.childElementCount) { app.classList.add('out'); await sleep(150); if (my !== token) return }
+  syncNav(route)
+  document.body.classList.remove('nav-open')
+  main.classList.toggle('wide', route === '' || route === 'login')
+  app.classList.remove('out')
+  app.innerHTML = ''
+  document.body.dataset.route = route || 'home'
+  if (route === '') { current = null; home(app, ctx, { begin }) }
+  else if (route === 'login') { current = null; loginPage(app, ctx, h => (location.hash = h)) }
+  else if (route === 'accounts') { current = null; accountsPage(app, ctx, openCloud) }
+  else if (route === 'review') { current = {}; await (await import('./pages/review.js')).default(app, ctx, arg) }
+  else if (route === 'train') { current = {}; (await import('./pages/train.js')).default(app, ctx) }
+  else { const [fn, mod] = pages[route]; current = mod; fn(app, ctx) }
+  if (my !== token) return
+  if (mode === 'nav') { app.classList.remove('in'); void app.offsetWidth; app.classList.add('in'); if (!firstRender) scrollTo(0, 0) }
+  firstRender = false
+  enhance(app, mode === 'nav' ? 'nav' : mode)
 }
 
-// job pill + live refresh while the batch analysis runs
+app.addEventListener('rerender', () => { const y = scrollY; render('soft').then(() => scrollTo(0, y)) })
+$('#burger').onclick = () => document.body.classList.toggle('nav-open')
+$('#uform').onsubmit = e => { e.preventDefault(); if ($('#uname').value.trim()) begin($('#uname').value) }
+
+// job pill + quiet refresh while the batch analysis runs
 let t
 S.listeners.add(() => {
   const j = S.job, el = $('#job')
@@ -98,20 +144,10 @@ S.listeners.add(() => {
     $('#stop').onclick = stopBatch
   }
   clearTimeout(t)
-  t = setTimeout(() => { if (current?.refresh && !document.activeElement?.matches('input,select')) render() }, 1500)
+  t = setTimeout(() => { if (current?.refresh && !document.activeElement?.matches('input,select')) { const y = scrollY; render('silent').then(() => scrollTo(0, y)) } }, 1500)
 })
 
-$('#uform').onsubmit = e => { e.preventDefault(); begin($('#uname').value || DEFAULT_USER) }
-$('#uname').value = localStorage.last || DEFAULT_USER
-$('#depth').value = S.depth
-$('#depth').onchange = e => { S.depth = +e.target.value; localStorage.depth = S.depth }
-$('#clear').onclick = async () => { if (confirm('Delete all saved games and analysis from this browser?')) { await kvClear(); localStorage.clear(); location.reload() } }
 if (import.meta.env.DEV) window.S = S
-function syncCloudNav() {
-  $('#ddcloud').hidden = !cloud.enabled
-  $('#sign').textContent = cloud.signedIn() ? 'Sign out' : 'Sign in'
-  $('#sign').href = cloud.signedIn() ? '#/' : '#/login'
-}
-$('#sign').onclick = () => { if (cloud.signedIn()) { cloud.logout(); S.cloud = null; S.games = []; S.an = {}; S.user = null } }
-addEventListener('hashchange', render)
+addEventListener('hashchange', () => render())
+initScroll()
 render()

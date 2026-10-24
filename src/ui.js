@@ -2,9 +2,8 @@ import { S } from './state.js'
 import { WINDOWS, CLASSES } from './stats.js'
 
 export const filterHTML = () => `<div class="filters">
-  ${WINDOWS.map(([w, l]) => `<button class="chip" data-win="${w}" aria-pressed="${S.filter.win === w}">${l.replace('Last ', '')}</button>`).join('')}
-  <span class="sep"></span>
-  ${CLASSES.map(c => `<button class="chip cls" style="--c:var(--c-${c})" data-c="${c}" aria-pressed="${S.filter.classes.has(c)}">${c[0].toUpperCase() + c.slice(1)}</button>`).join('')}
+  <div class="seg" role="group" aria-label="Period">${WINDOWS.map(([w, , s]) => `<button data-win="${w}" aria-pressed="${S.filter.win === w}">${s}</button>`).join('')}<i class="thumb"></i></div>
+  <div class="chips" role="group" aria-label="Time control">${CLASSES.map(c => `<button class="chip cls" style="--c:var(--c-${c})" data-c="${c}" aria-pressed="${S.filter.classes.has(c)}"><i></i>${c[0].toUpperCase() + c.slice(1)}</button>`).join('')}</div>
 </div>`
 
 export function bindFilter(root, rerender) {
@@ -20,3 +19,4 @@ export const sign = (v, d = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(
 export const dcls = v => (v > 0.0001 ? 'up' : v < -0.0001 ? 'down' : '')
 export const winLabel = () => (S.filter.win ? 'the ' + WINDOWS.find(w => w[0] === S.filter.win)[1].toLowerCase() : 'all time')
 export const cap = s => s[0].toUpperCase() + s.slice(1)
+export const HOW = { checkmated: 'checkmate', resigned: 'resignation', timeout: 'time', abandoned: 'abandonment', agreed: 'agreement', repetition: 'repetition', stalemate: 'stalemate', insufficient: 'insufficient material', '50move': 'the fifty move rule', timevsinsufficient: 'time against insufficient material', win: 'a win' }

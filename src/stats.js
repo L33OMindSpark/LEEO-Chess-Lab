@@ -1,7 +1,7 @@
 import { mean } from './util.js'
 import { myGame } from './analyze.js'
 
-export const WINDOWS = [[1, 'Last 24 hours'], [7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days'], [365, 'Last 12 months'], [0, 'All time']]
+export const WINDOWS = [[1, 'Last 24 hours', '24h'], [7, 'Last 7 days', '7d'], [30, 'Last 30 days', '30d'], [90, 'Last 90 days', '90d'], [365, 'Last 12 months', '12m'], [0, 'All time', 'All']]
 export const CLASSES = ['rapid', 'blitz', 'bullet', 'daily']
 const DAY = 86400
 

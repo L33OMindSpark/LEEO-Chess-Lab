@@ -5,6 +5,7 @@ import { Engine } from '../engine.js'
 import { parseGame, judge, winPct } from '../analyze.js'
 import { evalGraph } from '../charts.js'
 import { esc, dateStr } from '../util.js'
+import { HOW } from '../ui.js'
 
 const MARK = m => (m.loss >= 30 ? '<span class="bl">??</span>' : m.loss >= 20 ? '<span class="ms">?</span>' : m.loss >= 10 ? '<span class="ia">?!</span>' : '')
 const evText = l => (l.mate != null ? `M${Math.abs(l.mate)}` : (l.cp > 0 ? '+' : '') + (l.cp / 100).toFixed(2))
@@ -27,7 +28,7 @@ export default async function (root, ctx, id) {
   const names = g.me === 'w' ? [S.user, g.oppName] : [g.oppName, S.user], rate = g.me === 'w' ? [g.my, g.opp] : [g.opp, g.my]
   const outcome = g.score === 1 ? 'You won' : g.score === 0 ? 'You lost' : 'Draw'
 
-  root.innerHTML = `<div class="pagehead"><div><h1>${esc(names[0])} vs ${esc(names[1])}</h1><p>${outcome} by ${esc(g.how)} on ${dateStr(g.t)}. ${esc(g.name)}. <a href="${esc(g.url)}" target="_blank" rel="noopener">Open on chess.com</a></p></div><a class="btn" href="#/games" style="text-decoration:none">All games</a></div>
+  root.innerHTML = `<div class="phead"><div><h1>${esc(names[0])} vs ${esc(names[1])}</h1><p>${outcome} by ${esc(HOW[g.how] || g.how)} on ${dateStr(g.t)}. ${esc(g.name)}. <a href="${esc(g.url)}" target="_blank" rel="noopener">Open on chess.com</a></p></div><a class="btn" href="#/games" style="text-decoration:none">All games</a></div>
   <div class="review"><div>
     <div class="pl" id="ptop"></div>
     <div class="boardrow"><div class="evalbar"><i id="ebar" style="height:50%"></i></div><div class="board" id="board"></div></div>

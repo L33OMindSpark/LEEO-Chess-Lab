@@ -8,7 +8,7 @@ const list = (o, title) => `<h3>${title}</h3><table><tbody>${Object.entries(o).s
 
 export default function (root) {
   const cur = slice(S.games, S.filter), m = metrics(cur, S.an), h = habits(cur), e = m.e
-  root.innerHTML = `<div class="pagehead"><div><h1>Habits</h1><p>When, against whom and how you win or lose, over ${winLabel()}. Bars show your score; the number below is games played.</p></div>${filterHTML()}</div>
+  root.innerHTML = `<div class="phead"><div><h1>Habits</h1><p>When, against whom and how you win or lose, over ${winLabel()}. Bars show your score; the number below is games played.</p></div>${filterHTML()}</div>
   ${m.n < 10 ? '<div class="panel"><p class="empty">Not enough games here. Pick a longer period.</p></div>' : `
   <div class="grid geven">
     <section class="panel"><h2>Day of the week</h2><p class="sub">Score %, dashed line is 50.</p><div id="c1"></div></section>

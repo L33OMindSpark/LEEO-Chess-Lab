@@ -11,7 +11,7 @@ export default function (root) {
   const cur = slice(S.games, S.filter), rows = openings(cur, color).filter(r => r.n >= 2)
   const fm = firstMoves(cur)
   const mini = (title, map) => `<h3>${title}</h3><table><tbody>${[...map].sort((a, b) => b[1].n - a[1].n).slice(0, 5).map(([k, o]) => row(k, { ...o, score: scoreOf(o) * 100 })).join('')}</tbody></table>`
-  root.innerHTML = `<div class="pagehead"><div><h1>Openings</h1><p>What you play, and what it earns you, over ${winLabel()}.</p></div>${filterHTML()}</div>
+  root.innerHTML = `<div class="phead"><div><h1>Openings</h1><p>What you play, and what it earns you, over ${winLabel()}.</p></div>${filterHTML()}</div>
   <div class="filters" style="margin-bottom:14px"><button class="chip" data-col="w" aria-pressed="${color === 'w'}">As White</button><button class="chip" data-col="b" aria-pressed="${color === 'b'}">As Black</button></div>
   <div class="grid g21"><section class="panel"><h2>Your openings as ${color === 'w' ? 'White' : 'Black'}</h2><p class="sub">Click an opening to see the variations. Average opponent rating on the right.</p>
     ${rows.length ? `<table><thead><tr><th>Opening</th><th class="r">Games</th><th>Results</th><th class="r">Score</th><th class="r">Opp.</th></tr></thead><tbody>

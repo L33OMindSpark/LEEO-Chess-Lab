@@ -13,15 +13,15 @@ export default function (root, ctx) {
     for (const m of judge(a)) if (m.i % 2 === (g.me === 'w' ? 0 : 1) && m.loss >= 20 && m.before >= 25 && a.best[m.i] && a.best[m.i] !== ucis[m.i]) items.push({ g, a, m, ucis })
   }
   if (!items.length) {
-    root.innerHTML = `<div class="pagehead"><div><h1>Blunder trainer</h1></div></div><div class="panel"><p class="empty">No positions yet. Analyse some games on the <a href="#/overview">overview page</a> and your own mistakes will show up here as puzzles.</p></div>`
+    root.innerHTML = `<div class="phead"><div><h1>Blunder trainer</h1></div></div><div class="panel"><p class="empty">No positions yet. Analyse some games on the <a href="#/overview">overview page</a> and your own mistakes will show up here as puzzles.</p></div>`
     return
   }
   items.sort(() => Math.random() - 0.5)
   let k = -1, solved = 0, tried = 0, cg, cur, tries = 0
 
-  root.innerHTML = `<div class="pagehead"><div><h1>Blunder trainer</h1><p>${items.length} positions from your own games where you missed the best move. Find it.</p></div><div class="muted" id="score"></div></div>
-  <div class="puz"><div class="board" id="tb"></div><div class="fb" id="fb"></div>
-  <div class="filters"><button class="btn" id="hint">Hint</button><button class="btn" id="show">Show answer</button><button class="btn primary" id="next">Next position</button></div></div>`
+  root.innerHTML = `<div class="phead"><div><h1>Blunder trainer</h1><p>${items.length} positions from your own games where you missed the best move. Find it.</p></div></div>
+  <div class="puz"><div class="board" id="tb"></div><div class="puzside"><h2 id="score" class="num"></h2><p class="sub">Solved on the first try, out of positions seen.</p><div class="fb" id="fb"></div>
+  <div class="filters"><button class="btn" id="hint">Hint</button><button class="btn" id="show">Show answer</button><button class="btn primary" id="next">Next position</button></div></div></div>`
   const fb = root.querySelector('#fb'), say = (t, c = '') => { fb.className = 'fb ' + c; fb.innerHTML = t }
 
   function load() {
@@ -39,7 +39,7 @@ export default function (root, ctx) {
     say(`You play ${turn === 'white' ? 'White' : 'Black'} against ${esc(cur.g.oppName)} (${dateStr(cur.g.t)}). Find the best move.`)
     score()
   }
-  const score = () => (root.querySelector('#score').textContent = `Solved ${solved} of ${tried}`)
+  const score = () => (root.querySelector('#score').textContent = `${solved} of ${tried}`)
 
   function onMove(from, to) {
     const legal = cur.chess.moves({ verbose: true }).find(m => m.from === from && m.to === to)

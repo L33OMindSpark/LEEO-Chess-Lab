@@ -11,13 +11,14 @@ function showTip(html, ev) {
 }
 const hideTip = () => { if (tip) tip.style.display = 'none' }
 const svg = (w, h, inner, cls = '') => `<svg viewBox="0 0 ${w} ${h}" class="chart ${cls}" role="img" preserveAspectRatio="xMidYMid meet">${inner}</svg>`
-const mon = t => new Date(t * 1000).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
+let mon = t => new Date(t * 1000).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
 
 export function lineChart(el, series) {
   const W = 760, H = 280, m = { l: 46, r: 14, t: 12, b: 28 }
   const xs = series.flatMap(s => s.pts.map(p => p[0])), ys = series.flatMap(s => s.pts.map(p => p[1]))
   if (!xs.length) { el.innerHTML = '<p class="empty">No rating data in this selection.</p>'; return }
   const x0 = Math.min(...xs), x1 = Math.max(...xs)
+  mon = x1 - x0 < 200 * 86400 ? t => new Date(t * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : t => new Date(t * 1000).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
   let y0 = Math.floor(Math.min(...ys) / 100) * 100, y1 = Math.ceil(Math.max(...ys) / 100) * 100
   if (y1 - y0 < 200) { y0 -= 100; y1 += 100 }
   const X = t => m.l + ((t - x0) / (x1 - x0 || 1)) * (W - m.l - m.r), Y = v => H - m.b - ((v - y0) / (y1 - y0)) * (H - m.t - m.b)
@@ -25,7 +26,7 @@ export function lineChart(el, series) {
   let g = ''
   for (let v = y0; v <= y1; v += step) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${m.l - 8}" y="${Y(v) + 4}" class="ax" text-anchor="end">${v}</text>`
   for (let i = 0; i < 5; i++) { const t = x0 + ((x1 - x0) * i) / 4; g += `<text x="${X(t)}" y="${H - 8}" class="ax" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}">${mon(t)}</text>` }
-  const paths = series.map(s => `<path d="${s.pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="var(--c-${s.key})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')
+  const paths = series.map(s => `<path class="line" pathLength="1" d="${s.pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="var(--c-${s.key})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')
   el.innerHTML = `<div class="legend">${series.map(s => `<span><i style="background:var(--c-${s.key})"></i>${s.name}</span>`).join('')}</div>` + svg(W, H, g + paths + '<g class="hov"></g><rect class="hit" x="0" y="0" width="' + W + '" height="' + H + '" fill="transparent"/>')
   const s = el.querySelector('svg'), hov = s.querySelector('.hov')
   s.addEventListener('mousemove', ev => {
@@ -46,7 +47,7 @@ export function barChart(el, items, { h = 190 } = {}) {
   items.forEach((it, i) => {
     const x = m.l + i * bw + bw * 0.22, w = bw * 0.56, y = Y(it.score), bh = H - m.b - y
     const low = it.n < 5
-    if (it.n) g += `<path d="M${x} ${H - m.b}V${y + 4}Q${x} ${y} ${x + 4} ${y}H${x + w - 4}Q${x + w} ${y} ${x + w} ${y + 4}V${H - m.b}Z" fill="${it.score >= 50 ? 'var(--win)' : 'var(--loss)'}" opacity="${low ? 0.35 : 1}" class="bar" data-i="${i}"/>`
+    if (it.n) g += `<path d="M${x} ${H - m.b}V${y + 4}Q${x} ${y} ${x + 4} ${y}H${x + w - 4}Q${x + w} ${y} ${x + w} ${y + 4}V${H - m.b}Z" fill="${it.score >= 50 ? 'var(--win)' : 'var(--loss)'}" opacity="${low ? 0.35 : 1}" class="bar" data-i="${i}" style="--i:${i}"/>`
     g += `<text x="${x + w / 2}" y="${H - 16}" class="ax" text-anchor="middle">${esc(it.label)}</text><text x="${x + w / 2}" y="${H - 3}" class="ax faint" text-anchor="middle">${it.n}</text>`
   })
   el.innerHTML = svg(W, H, g)
@@ -76,3 +77,37 @@ export const wdlBar = o => {
   return `<span class="wdl" title="${o.w} wins, ${o.d} draws, ${o.l} losses"><i class="w" style="width:${(o.w / t) * 100}%"></i><i class="d" style="width:${(o.d / t) * 100}%"></i><i class="l" style="width:${(o.l / t) * 100}%"></i></span>`
 }
 export const num = fmt
+
+// one square per day for the last 53 weeks, shaded by how many games were played
+export function heatmap(el, games) {
+  const day = t => Math.floor(t / 86400), today = day(Date.now() / 1000), dow = (new Date().getUTCDay() + 6) % 7
+  const start = today - dow - 52 * 7, by = new Map()
+  for (const g of games) { const d = day(g.t); if (d >= start) { const o = by.get(d) || { n: 0, s: 0 }; o.n++; o.s += g.score; by.set(d, o) } }
+  const max = Math.max(1, ...[...by.values()].map(o => o.n)), W = 53 * 15, H = 7 * 15 + 18
+  let out = '', lastM = -1
+  for (let w = 0; w < 53; w++) {
+    const d0 = new Date((start + w * 7) * 86400000), m = d0.getUTCMonth()
+    if (m !== lastM && w < 50) { out += `<text x="${w * 15}" y="10" class="ax">${d0.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })}</text>`; lastM = m }
+    for (let r = 0; r < 7; r++) {
+      const d = start + w * 7 + r
+      if (d > today) continue
+      const o = by.get(d), lv = o ? Math.ceil((o.n / max) * 4) : 0
+      out += `<rect x="${w * 15}" y="${18 + r * 15}" width="12" height="12" rx="3" fill="${lv ? 'var(--accent)' : 'var(--line)'}" opacity="${lv ? 0.25 + lv * 0.19 : 0.6}" data-d="${d}" ${o ? `data-n="${o.n}" data-s="${o.s}"` : ''}/>`
+    }
+  }
+  el.innerHTML = svg(W, H, out, 'heat')
+  el.querySelectorAll('rect').forEach(r => {
+    r.addEventListener('mousemove', ev => showTip(`<b>${new Date(r.dataset.d * 86400000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</b><div>${r.dataset.n ? `${r.dataset.n} games, score ${((r.dataset.s / r.dataset.n) * 100).toFixed(0)}%` : 'No games'}</div>`, ev))
+    r.addEventListener('mouseleave', hideTip)
+  })
+}
+
+// tiny eval history of one game from my point of view
+export const sparkline = (ev, me) => {
+  const n = ev.length, pts = ev.map((v, i) => `${((i / (n - 1 || 1)) * 100).toFixed(1)},${(26 - ((me === 'w' ? winPct(v) : 100 - winPct(v)) / 100) * 26).toFixed(1)}`).join(' ')
+  return `<svg class="spark" viewBox="0 0 100 26" preserveAspectRatio="none"><line x1="0" x2="100" y1="13" y2="13" stroke="var(--line2)" stroke-dasharray="2 3" stroke-width="1" vector-effect="non-scaling-stroke"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`
+}
+export const ring = acc => {
+  const c = 2 * Math.PI * 19, col = acc >= 85 ? 'var(--win)' : acc >= 70 ? 'var(--accent)' : 'var(--warn)'
+  return `<div class="ring"><svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" fill="none" stroke="var(--line)" stroke-width="4"/><circle cx="23" cy="23" r="19" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(acc / 100) * c} ${c}"/></svg><b>${Math.round(acc)}</b></div>`
+}
