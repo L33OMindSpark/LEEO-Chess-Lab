@@ -20,7 +20,7 @@ export default function (root) {
   if (res) list = list.filter(g => String(g.score) === res)
   let lastG = ''
   const rows = list.slice(0, shown).map(g => {
-    const a = S.sm[g.id], acc = a ? a.acc : g.ca, k = g.score === 1 ? 'w' : g.score === 0 ? 'l' : 'd'
+    const a = S.sm[g.id], acc = g.ca ?? (a ? a.acc : null), k = g.score === 1 ? 'w' : g.score === 0 ? 'l' : 'd'
     const head = groupOf(g) !== lastG ? `<div class="gh"><span>${(lastG = groupOf(g))}</span></div>` : ''
     const can = g.pgn || a, tag = can ? 'a' : 'div'
     return head + `<${tag} class="game" ${can ? `href="#/review/${g.id}"` : ''}><i class="stripe ${k}"></i>

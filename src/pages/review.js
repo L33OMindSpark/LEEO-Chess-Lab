@@ -45,7 +45,7 @@ export default async function (root, ctx, id) {
   let setMark = () => {}, live, token = 0, linesEl, timer
 
   const players = () => {
-    const sides = flip ? [0, 1] : [1, 0], acc = c => { if (!J.length) return ''; const x = J.filter(m => m.i % 2 === c); return `<span class="acc">accuracy ${(x.reduce((s, m) => s + m.acc, 0) / (x.length || 1)).toFixed(1)}%</span>` }
+    const sides = flip ? [0, 1] : [1, 0], acc = c => { if (!J.length) return ''; const x = J.filter(m => m.i % 2 === c); const mine = c === (g.me === 'w' ? 0 : 1) && g.ca != null; return `<span class="acc">accuracy ${mine ? g.ca.toFixed(1) + '% on chess.com' : (x.reduce((s, m) => s + m.acc, 0) / (x.length || 1)).toFixed(1) + '%'}</span>` }
     root.querySelector('#ptop').innerHTML = `<span>${esc(names[sides[0]])} <span class="muted">${rate[sides[0]]}</span></span>${acc(sides[0])}`
     root.querySelector('#pbot').innerHTML = `<span>${esc(names[sides[1]])} <span class="muted">${rate[sides[1]]}</span></span>${acc(sides[1])}`
   }

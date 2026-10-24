@@ -17,6 +17,8 @@ export default function (root) {
   const hz = horizons(S.games, f.classes, S.sm)
   const verdict = hz.find(h => h.win === f.win)?.verdict
   const P = peer(cur, S.sm), p = S.profile || {}, stats = S.stats || {}
+  const officialBits = [stats.tactics?.highest && `Tactics best ${fmt(stats.tactics.highest.rating)}`, stats.puzzle_rush?.best && `Puzzle Rush best ${stats.puzzle_rush.best.score}`, stats.fide && `FIDE ${fmt(stats.fide)}`].filter(Boolean)
+  const officialLine = officialBits.length ? `<p class="muted" style="margin:26px 0 0;font-size:.92rem">Straight from chess.com: ${officialBits.join(', ')}.</p>` : ''
   const analysed = analysedCount(), total = S.games.length
   const now = k => stats['chess_' + k]?.last?.rating, best = k => stats['chess_' + k]?.best?.rating
   const tp = tips(cur, m)
@@ -49,11 +51,11 @@ export default function (root) {
   ${coach}${strip}${cover}
   ${m.n === 0 ? `<div class="card"><p class="empty">No games in this selection. Pick a longer period or turn on more time controls.</p></div>` : `
   <section class="sec"><div class="lead"><h2>Your level</h2><p>Your rating on chess.com right now, your record in this selection, and the average rating over it.</p></div>
-    <div class="levels">${Object.entries(m.byCls).map(([k, c]) => { const set = cur.filter(g => g.cls === k), w = set.filter(g => g.score === 1).length, d = set.filter(g => g.score === 0.5).length, l = set.length - w - d, big = now(k) || Math.round(c.avg)
+    <div class="levels">${Object.entries(m.byCls).map(([k, c]) => { const set = cur.filter(g => g.cls === k), off = f.win === 0 ? stats['chess_' + k]?.record : null, w = off ? off.win : set.filter(g => g.score === 1).length, d = off ? off.draw : set.filter(g => g.score === 0.5).length, l = off ? off.loss : set.length - w - d, big = now(k) || Math.round(c.avg)
       return `<div class="level" style="--c:var(--c-${k})"><div class="name">${cap(k)} ${now(k) ? 'rating now' : 'average rating'}</div>
         <div class="big num" data-count="${big}">${fmt(big)}</div><div class="muted">${best(k) ? `best ever ${best(k)}, ` : ''}average here ${fmt(c.avg)}</div>
-        <div class="muted"><b style="color:var(--ink)">${w}W ${l}L ${d}D</b> in ${c.n} games, <span class="delta ${dcls(c.delta)}">${sign(c.delta)}</span> rating in range</div></div>` }).join('')}
-      <div class="level"><div class="name">All games, average rating</div><div class="big num" data-count="${Math.round(m.avgMy)}">${fmt(m.avgMy)}</div><div class="muted">opponents averaged ${fmt(m.avgOpp)}</div><div class="muted">${fmt(m.n)} games, ${m.n ? ((m.o.w / m.n) * 100).toFixed(0) : 0}% won</div></div></div></section>
+        <div class="muted"><b style="color:var(--ink)">${w}W ${l}L ${d}D</b> ${off ? 'on chess.com, all time' : `in ${c.n} games`}, <span class="delta ${dcls(c.delta)}">${sign(c.delta)}</span> rating in range</div></div>` }).join('')}
+      <div class="level"><div class="name">All games, average rating</div><div class="big num" data-count="${Math.round(m.avgMy)}">${fmt(m.avgMy)}</div><div class="muted">opponents averaged ${fmt(m.avgOpp)}</div><div class="muted">${fmt(m.n)} games, ${m.n ? ((m.o.w / m.n) * 100).toFixed(0) : 0}% won</div></div></div>${officialLine}</section>
 
   <section class="sec"><div class="lead"><h2>Rating history</h2><p>Your rating after each game in this selection.</p></div><div class="card"><div id="rc"></div></div></section>
 

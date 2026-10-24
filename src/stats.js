@@ -34,8 +34,8 @@ export function engineStats(set, sm) {
   const pm = sum(rows, s => s.pm), cm = sum(rows, s => s.cm), tn = sum(rows, s => s.tn)
   const bl = sum(rows, s => s.bl[0] + s.bl[1] + s.bl[2]), er = ph[0].err + ph[1].err + ph[2].err
   return {
-    games: rows.length, moves, acc: mean(rows.map(r => r.s.acc)),
-    accW: mean(rows.filter(r => r.g.me === 'w').map(r => r.s.acc)), accB: mean(rows.filter(r => r.g.me === 'b').map(r => r.s.acc)),
+    games: rows.length, moves, acc: mean(rows.map(r => r.g.ca ?? r.s.acc)),
+    accW: mean(rows.filter(r => r.g.me === 'w').map(r => r.g.ca ?? r.s.acc)), accB: mean(rows.filter(r => r.g.me === 'b').map(r => r.g.ca ?? r.s.acc)),
     count: c => (c === 'blunder' ? bl : c === 'mistake' ? sum(rows, s => s.ms[0] + s.ms[1] + s.ms[2]) : sum(rows, s => s.ia[0] + s.ia[1] + s.ia[2])),
     per100: moves ? (bl / moves) * 100 : 0, err100: moves ? (er / moves) * 100 : 0,
     ph, phRate: ph.map(p => (p.n ? (p.err / p.n) * 100 : 0)),
