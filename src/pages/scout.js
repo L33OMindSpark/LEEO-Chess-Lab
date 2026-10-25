@@ -1,8 +1,11 @@
 import { Chessground } from 'chessground'
 import { Chess } from 'chess.js'
 import { getProfile, getStats, loadGames } from '../api.js'
-import { report, buildBook, bookMoves, twinMove } from '../scout.js'
-import { Engine } from '../engine.js'
+import { report, buildBook, bookMoves, twinMove, engineNotes } from '../scout.js'
+import { analyzeGame, summarize } from '../analyze.js'
+import { engineStats, patterns } from '../stats.js'
+import { MOTIF } from '../motifs.js'
+import { Engine, Pool } from '../engine.js'
 import { barChart, wdlBar } from '../charts.js'
 import { esc, fmt } from '../util.js'
 import { tabs } from '../ui.js'
@@ -12,6 +15,7 @@ const CLS = ['rapid', 'blitz', 'bullet', 'daily']
 const cap = s => s[0].toUpperCase() + s.slice(1)
 let cache = null, picked = new Set(['rapid', 'blitz', 'bullet'])
 const books = {}
+const engCache = {}
 
 const area = t => (/^Avoid/.test(t) ? 'Avoid' : /clock|time/i.test(t) ? 'Clock' : /resign|Rematch|tilt/i.test(t) ? 'Nerves' : /hours/i.test(t) ? 'When' : /long|endgame/i.test(t) ? 'Plan' : /^Expect/.test(t) ? 'Prepare' : 'Play')
 const wl = r => `${r.w}W ${r.l}L ${r.d}D`
@@ -66,11 +70,11 @@ export default async function (root, ctx, user, tab = 'report') {
   if (set.length < 20) { body.innerHTML = '<section class="card"><p class="empty">Fewer than 20 public games in this selection, so there is not enough to read. Try a longer period or more time controls.</p></section>'; return }
   if (tab === 'tree') return treeTab(body, ctx, set, profile)
   if (tab === 'twin') return twinTab(body, ctx, set, profile, now)
-  reportTab(body, set, user)
+  reportTab(body, ctx, set, user)
 }
 
 // ---------- report ----------
-function reportTab(body, set, user) {
+function reportTab(body, ctx, set, user) {
   const R = report(set), S = R.stalker, m = R.m
   const first = R.firstW.slice(0, 5), vs = Object.entries(R.vs)
   const opTable = (rows, color) => rows.length ? `<table><thead><tr><th>Opening</th><th class="r">Games</th><th>Results</th><th class="r">Win rate</th></tr></thead><tbody>${rows.slice(0, 8).map(r => `<tr><td>${esc(r.fam)}${r.n >= 6 && r.score < m.score - 6 ? ' <span class="tag down">weak</span>' : r.n >= 6 && r.score > m.score + 6 ? ' <span class="tag up">strong</span>' : ''}</td><td class="r">${r.n}</td><td>${wdlBar(r)}</td><td class="r">${((r.w / r.n) * 100).toFixed(0)}%</td></tr>`).join('')}</tbody></table>` : '<p class="empty">No games.</p>'
@@ -78,6 +82,8 @@ function reportTab(body, set, user) {
   body.innerHTML = `<div class="stack">
   <section class="sec"><div class="lead"><h2>How to beat ${esc(user)}</h2><p>Rules applied to their own results. Each line quotes the numbers behind it.</p></div><div>
     ${R.advice.length ? R.advice.map(a => `<div class="tipcard"><span class="area">${area(a.title)}</span><h3>${esc(a.title)}</h3><div>${esc(a.body)}</div></div>`).join('') : '<p class="empty">Nothing stands out. They are balanced across openings and results.</p>'}</div></section>
+
+  <section class="sec"><div class="lead"><h2>Engine check</h2><p>Stockfish reads their newest games in your browser. It adds accuracy, where they go wrong and what kind of mistake they make.</p></div><div id="eng"></div></section>
 
   <section class="sec"><div class="lead"><h2>Stalker score</h2><p>How exploitable this player looks, from 0 (hard to prepare against) to 100 (a lot to aim at). Four parts, shown so you can see why.</p></div><div>
     <div class="levels" style="margin-bottom:22px"><div class="level" style="--c:var(--accent)"><div class="name">${esc(S.verdict)}</div><div class="big num" data-count="${S.score}">${S.score}</div></div></div>
@@ -104,6 +110,7 @@ function reportTab(body, set, user) {
     ${R.traps.falls.length + R.traps.sets.length ? '' : '<p class="empty">No short game repeats often enough to call it a trap.</p>'}</div></section>
 
   <section class="sec"><div class="lead"><h2>When they play</h2><p>Score by day and by time of day, in your local time. Bars show score, the number below is games.</p></div><div class="grid geven"><div class="card"><div id="bd"></div></div><div class="card"><div id="bh"></div></div></div></section></div>`
+  engineCheck(body.querySelector('#eng'), ctx, set, user)
   barChart(body.querySelector('#bd'), R.when.days)
   barChart(body.querySelector('#bh'), R.when.hours)
 }
@@ -215,4 +222,51 @@ async function twinTab(body, ctx, set, profile, now) {
   $('#pres').onclick = () => { token++; over = true; say('You resigned. The twin wins.'); sync() }
   ctx.onCleanup(() => { token++; eng && eng.terminate() })
   start()
+}
+
+// ---------- engine check ----------
+function engineCheck(host, ctx, set, user) {
+  const key = user + [...picked].sort().join(',')
+  let pool, stop = false
+  ctx.onCleanup(() => { stop = true; pool && pool.terminate() })
+  const show = c => {
+    const { e, pat, notes, n } = c
+    host.innerHTML = `<div class="levels"><div class="level" style="--c:var(--accent)"><div class="name">Average accuracy</div><div class="big num">${e.acc.toFixed(1)}</div><div class="muted">over ${n} analysed games</div></div>
+      <div class="level"><div class="name">Blunders per 100 moves</div><div class="big num">${e.per100.toFixed(1)}</div><div class="muted">${e.count('blunder')} blunders, ${e.count('mistake')} mistakes</div></div>
+      <div class="level"><div class="name">Errors by phase</div><div class="big num" style="font-size:1.7rem;padding-top:14px">${e.phRate.map(r => r.toFixed(1) + '%').join(' / ')}</div><div class="muted">opening / middlegame / endgame</div></div></div>
+      ${notes.length ? `<div style="margin-top:20px">${notes.map(a => `<div class="tipcard"><span class="area">Engine</span><h3>${esc(a.title)}</h3><div>${esc(a.body)}</div></div>`).join('')}</div>` : '<p class="muted" style="margin-top:18px">Nothing in their play stands out as a clear weakness.</p>'}
+      ${pat ? `<div class="card" style="margin-top:18px"><h3 style="margin-bottom:8px">What their errors look like</h3>${pat.motifs.filter(x => x.n).sort((a, b) => b.n - a.n).map(x => `<div class="hbar"><span style="min-width:0">${MOTIF[x.k]}</span><div class="hb"><i style="width:${(x.n / pat.total) * 100}%"></i></div><b>${x.n} of ${pat.total} errors</b></div>`).join('')}</div>` : ''}
+      <div class="filters" style="margin-top:16px"><button class="btn small" id="erun">Analyse again</button></div>`
+    host.querySelector('#erun').onclick = start
+  }
+  function ask() {
+    host.innerHTML = `<div class="filters"><select id="en" class="field" style="width:auto"><option value="20">Newest 20 games</option><option value="30" selected>Newest 30 games</option><option value="60">Newest 60 games</option></select><button class="btn primary" id="erun">Run the engine check</button></div>
+      <p class="faint" style="font-size:.88rem;margin:10px 0 0">Takes about a minute for 30 games. It runs on your computer and uses its processor while it works.</p>`
+    host.querySelector('#erun').onclick = start
+  }
+  async function start() {
+    const n = +(host.querySelector('#en')?.value || 30)
+    const todo = set.filter(g => g.pgn && g.moves >= 12).slice(0, n)
+    if (todo.length < 8) { host.innerHTML = '<p class="empty">Too few games with a full move list in this selection.</p>'; return }
+    host.innerHTML = `<div class="bar" style="height:8px"><i id="ep" style="width:0"></i></div><p class="muted" id="et">Starting Stockfish</p><button class="btn small" id="estop">Stop</button>`
+    host.querySelector('#estop').onclick = () => { stop = true }
+    stop = false
+    pool = new Pool(Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 2)))
+    const sm = {}
+    let done = 0
+    for (const g of todo) {
+      if (stop) break
+      try { const a = await analyzeGame(g, pool, 12); if (a) sm[g.id] = summarize(g, a) } catch { break }
+      done++
+      const p = host.querySelector('#ep'); if (p) { p.style.width = (done / todo.length) * 100 + '%'; host.querySelector('#et').textContent = `Analysed ${done} of ${todo.length} games` }
+    }
+    pool.terminate(); pool = null
+    if (!host.isConnected) return
+    const used = todo.filter(g => sm[g.id])
+    if (used.length < 8) { ask(); return }
+    const e = engineStats(used, sm), pat = patterns(used, sm)
+    engCache[key] = { e, pat, notes: engineNotes(e, pat), n: used.length }
+    show(engCache[key])
+  }
+  engCache[key] ? show(engCache[key]) : ask()
 }

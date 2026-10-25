@@ -124,3 +124,25 @@ export function twinMove(book, fen) {
   for (const x of mv) { r -= x.n; if (r <= 0) return x.san }
   return mv[0].san
 }
+
+// ---------- what the engine adds ----------
+const PHASES = ['opening', 'middlegame', 'endgame']
+export function engineNotes(e, pat) {
+  const out = [], add = (sev, title, body) => out.push({ sev, title, body })
+  if (!e) return out
+  const rates = e.phRate.map((r, i) => ({ r, i, n: e.ph[i].n })).filter(x => x.n >= 80)
+  if (rates.length >= 2) {
+    const hi = [...rates].sort((a, b) => b.r - a.r)[0], lo = [...rates].sort((a, b) => a.r - b.r)[0]
+    if (hi.r > lo.r * 1.5 && hi.r > 3) add(7, `They crack in the ${PHASES[hi.i]}`, `Mistakes or blunders on ${hi.r.toFixed(1)}% of their ${PHASES[hi.i]} moves, against ${lo.r.toFixed(1)}% in the ${PHASES[lo.i]}. Steer the game there.`)
+  }
+  if (e.winGames >= 6 && e.converted / e.winGames < 0.7) add(6, 'They let winning positions slip', `In ${e.winGames} analysed games they were clearly winning, they won only ${e.converted} (${((e.converted / e.winGames) * 100).toFixed(0)}%). Stay in the game when worse.`)
+  if (e.pressureMoves >= 30 && e.pressureRate > e.calmRate * 1.6 && e.pressureRate > 4) add(6, 'They crack in time trouble', `A mistake or blunder on ${e.pressureRate.toFixed(1)}% of moves when low on time, against ${e.calmRate.toFixed(1)}% otherwise. Make them think.`)
+  if (e.blundersTimed >= 10 && e.fastBlunders / e.blundersTimed > 0.4) add(5, 'They blunder quickly', `${((e.fastBlunders / e.blundersTimed) * 100).toFixed(0)}% of their blunders are played in under 3 seconds. Set problems early.`)
+  if (pat) {
+    const m = pat.motifs.filter(x => x.n).sort((a, b) => b.n - a.n)[0]
+    if (m && m.n / pat.total >= 0.25) add(6, { h: 'They leave pieces hanging', f: 'They miss free pieces', x: 'They miss forks', k: 'They miss mates', p: 'They miss promotions', m: 'They miss captures' }[m.k], `${m.n} of their ${pat.total} errors (${((m.n / pat.total) * 100).toFixed(0)}%) fit this pattern. Keep tactics on the board.`)
+    const c = pat.cells.find(x => x.lift >= 1.5)
+    if (c) add(4, `More errors on ${c.label}`, `${(c.eShare * 100).toFixed(0)}% of their errors come on ${c.label}, which are ${(c.mShare * 100).toFixed(0)}% of their moves.`)
+  }
+  return out.sort((a, b) => b.sev - a.sev)
+}
