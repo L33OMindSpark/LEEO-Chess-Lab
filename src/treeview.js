@@ -1,5 +1,5 @@
 // Layout and drawing for the opening tree. Pure functions (no DOM), so the same code draws the live page and the downloadable posters.
-const CW = 5.9, ROW = 15.5
+const CW = 5.9, ROW = 18.5
 export const PALETTE = ['#2F6F8F', '#B5651D', '#5B8C3A', '#8A4F9E', '#C2483D', '#2A8C82', '#9A7B1C', '#4B5FA8', '#A0527C', '#6B7B3A']
 
 // data: [name, eco, moves, children?]  ->  linked nodes
@@ -30,7 +30,7 @@ export function layout(root, expanded) {
   const maxLen = []
   nodes.forEach(n => (maxLen[n.rd] = Math.max(maxLen[n.rd] || 0, n.name.length)))
   const x = [maxLen[0] * CW + 34]
-  for (let d = 1; d < maxLen.length; d++) x[d] = x[d - 1] + Math.max(120, maxLen[d] * CW + 40)
+  for (let d = 1; d < maxLen.length; d++) x[d] = x[d - 1] + Math.max(150, maxLen[d] * CW + 52)
   nodes.forEach(n => { n.x = x[n.rd]; n.y = n.row * ROW })
   const last = x[x.length - 1] || 0
   const lastLabelRight = Math.max(...nodes.filter(n => n.rd === maxLen.length - 1).map(n => n.x + 12), 0)
@@ -43,7 +43,7 @@ const curve = (p, c) => { const mx = (p.x + c.x) / 2; return `M${p.x.toFixed(1)}
 
 // th: colours. badge(node) can return { text, color } to draw a small pill beside a node.
 export function inner(L, expanded, { th, selected = '', hits = null, fresh = null, badge = null } = {}) {
-  const links = L.links.map(([p, c]) => { const b = branch(c, L.root); return `<path d="${curve(p, c)}" fill="none" stroke="${b >= 0 ? PALETTE[b % PALETTE.length] : th.line}" stroke-opacity="${th.linkOp ?? 0.55}" stroke-width="${c.rd <= 1 ? 1.6 : 1.1}"/>` }).join('')
+  const links = L.links.map(([p, c]) => { const b = branch(c, L.root); return `<path d="${curve(p, c)}" fill="none" stroke="${b >= 0 ? PALETTE[b % PALETTE.length] : th.line}" stroke-opacity="${th.linkOp ?? 0.8}" stroke-width="${c.rd <= 1 ? 2.2 : 1.5}" vector-effect="non-scaling-stroke"/>` }).join('')
   const nodes = L.nodes.map(n => {
     const has = n.kids.length > 0, open = has && expanded.has(n.id), b = branch(n, L.root)
     const dim = hits && !hits.has(n.id)
@@ -62,7 +62,7 @@ export function inner(L, expanded, { th, selected = '', hits = null, fresh = nul
 
 // A complete standalone picture of the tree, for download.
 export function poster(root, expanded, { title, subtitle }) {
-  const th = { ink: '#1B2330', bg: '#FFFFFF', line: '#9AA3AF', linkOp: 0.6 }
+  const th = { ink: '#1B2330', bg: '#FFFFFF', line: '#9AA3AF', linkOp: 0.85 }
   const L = layout(root, expanded), padL = 56, padT = 118, padB = 52, padR = 40
   const W = L.width + padL + padR, H = L.height + padT + padB
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(W)}" height="${Math.ceil(H)}" viewBox="0 0 ${Math.ceil(W)} ${Math.ceil(H)}" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif">

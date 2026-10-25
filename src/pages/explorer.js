@@ -6,7 +6,7 @@ import { esc } from '../util.js'
 import { tabs } from '../ui.js'
 import { mineFor } from '../mine.js'
 
-const TH = { ink: 'var(--ink)', bg: 'var(--surface)', line: 'var(--faint)', linkOp: 0.5 }
+const TH = { ink: 'var(--ink)', bg: 'var(--surface)', line: 'var(--muted)', linkOp: 0.85 }
 const EX_TABS = [['explorer/defenses', 'Defense explorer'], ['explorer/openings', 'Opening explorer']]
 const fileName = s => s.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()
 const path = n => { const a = []; for (let x = n; x; x = x.parent) a.unshift(x.name); return a }
@@ -46,7 +46,7 @@ export default async function (root, ctx, kind = 'defenses', sel0) {
   }
   function fit() {
     const L = vp._L, r = $('#xc').getBoundingClientRect(), k = Math.min(1, (r.width - 40) / (L.width + 40), (r.height - 40) / (L.height + 30))
-    Object.assign(view, { k: Math.max(0.2, k), x: 20, y: Math.max(20, (r.height - L.height * Math.max(0.2, k)) / 2) }); apply()
+    Object.assign(view, { k: Math.max(0.3, k), x: 20, y: Math.max(20, (r.height - L.height * Math.max(0.3, k)) / 2) }); apply()
   }
   function centerOn(n) {
     const r = $('#xc').getBoundingClientRect()
@@ -147,7 +147,7 @@ export default async function (root, ctx, kind = 'defenses', sel0) {
   else {
     // first visit: open the biggest family so there is something to look at straight away
     const big = full.kids[0]?.kids[0]
-    if (big) { expandAll(big); selected = big; view.k = 0.6; draw(); panel(); centerOn(big) } else fit()
+    if (big) { expandAll(big); selected = big; view.k = 1; draw(); panel(); centerOn(big) } else fit()
   }
   ctx.onCleanup(() => { clearTimeout(t); removeEventListener('keydown', onKey); document.body.classList.remove('xfull'); document.body.style.overflow = '' })
 }
