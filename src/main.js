@@ -17,13 +17,14 @@ import targets from './pages/targets.js'
 import skills, * as skMod from './pages/skills.js'
 import mistakes, * as miMod from './pages/mistakes.js'
 import doctor, * as dcMod from './pages/doctor.js'
+import explorer from './pages/explorer.js'
 import games, * as gmMod from './pages/games.js'
 import { login as loginPage, accounts as accountsPage } from './pages/accounts.js'
 
 const app = $('#app'), main = $('main')
 let cleanups = [], current = null, token = 0, firstRender = true
 const pages = { overview: [overview, ovMod], skills: [skills, skMod], style: [style, stMod], openings: [openings, {}], doctor: [doctor, dcMod], habits: [habits, hbMod], engine: [engine, enMod], mistakes: [mistakes, miMod], targets: [targets, {}], games: [games, gmMod] }
-const GROUP = { overview: 'overview', skills: 'insights', style: 'insights', habits: 'insights', openings: 'insights', doctor: 'insights', engine: 'insights', mistakes: 'improve', train: 'improve', targets: 'improve', games: 'games', review: 'games', accounts: 'account', login: 'account' }
+const GROUP = { overview: 'overview', skills: 'insights', style: 'insights', habits: 'insights', openings: 'insights', doctor: 'insights', engine: 'insights', mistakes: 'improve', train: 'improve', targets: 'improve', games: 'games', review: 'games', explorer: 'learn', accounts: 'account', login: 'account' }
 
 // ---------- navigation bar ----------
 const item = (href, t, d, extra = '') => `<a href="${href}" ${extra}><b>${t}</b><span>${d}</span></a>`
@@ -40,9 +41,10 @@ function syncNav(name) {
   $('#nav').innerHTML = loaded
     ? `<a class="navlink ${group === 'overview' ? 'on' : ''}" href="#/overview">Overview</a>`
       + dd('insights', 'Insights', item('#/skills', 'Skills and peers', 'How you compare with opponents at your level') + item('#/style', 'Playstyle and habits', 'How you play, when, and what to work on') + item('#/openings', 'Openings', 'Your results, and where lines go wrong') + item('#/engine', 'Engine report', 'Accuracy, blunders and time, judged by Stockfish'), group)
+      + dd('learn', 'Learn', item('#/explorer/defenses', 'Defense explorer', 'Every defense against 1.e4, 1.d4 and more, with all variations') + item('#/explorer/openings', 'Opening explorer', 'The main openings for White, with all variations'), group)
       + dd('improve', 'Improve', item('#/mistakes', 'Mistake patterns', 'Where your errors keep clustering') + item('#/train', 'Blunder trainer', 'Your missed moves, repeated until they stick') + item('#/targets', 'Targets', 'Pick a number and track it weekly'), group)
       + `<a class="navlink ${group === 'games' ? 'on' : ''}" href="#/games">Games</a>` + acct + settings
-    : `<a class="navlink" href="#/" data-sc="story">How it works</a><a class="navlink" href="#/" data-sc="features">What you get</a>${acct}${settings}`
+    : `<a class="navlink ${group === 'learn' ? 'on' : ''}" href="#/explorer/defenses">Explorer</a><a class="navlink" href="#/" data-sc="story">How it works</a><a class="navlink" href="#/" data-sc="features">What you get</a>${acct}${settings}`
   $('#tcta').innerHTML = loaded ? `<a class="chip" href="#/overview" style="text-decoration:none">${S.profile?.avatar ? `<img src="${esc(S.profile.avatar)}" alt="" width="20" height="20" style="border-radius:50%">` : ''}<span class="u">${esc(S.user)}</span></a>`
     : `${cloud.enabled && !cloud.signedIn() ? '<a class="btn small pill" href="#/login">Sign in</a>' : ''}<button class="btn primary small pill" data-focus>Analyse</button>`
   $('#uform').style.display = loaded ? '' : 'none'
@@ -111,13 +113,14 @@ function flash(msg) {
 async function render(mode = 'nav') {
   const my = ++token
   cleanups.forEach(f => f()); cleanups = []
-  const [name = '', arg] = location.hash.replace(/^#\/?/, '').split('/')
+  const [name = '', arg, arg2] = location.hash.replace(/^#\/?/, '').split('/')
   const ctx = { onCleanup: f => cleanups.push(f) }
   const loaded = S.games.length > 0
   let route = name
   if (route === 'login' || route === 'accounts') { if (!cloud.enabled) route = '' }
+  else if (route === 'explorer') {}
   else if (!loaded) route = ''
-  else if (!route || (!pages[route] && route !== 'review' && route !== 'train')) route = route === '' ? '' : 'overview'
+  else if (!route || (!pages[route] && route !== 'review' && route !== 'train' && route !== 'explorer')) route = route === '' ? '' : 'overview'
 
   if (mode === 'nav' && !firstRender && app.childElementCount) { app.classList.add('out'); await sleep(150); if (my !== token) return }
   syncNav(route)
@@ -130,6 +133,7 @@ async function render(mode = 'nav') {
   else if (route === 'login') { current = null; loginPage(app, ctx, h => (location.hash = h)) }
   else if (route === 'accounts') { current = null; accountsPage(app, ctx, openCloud) }
   else if (route === 'review') { current = {}; await (await import('./pages/review.js')).default(app, ctx, arg) }
+  else if (route === 'explorer') { current = {}; await explorer(app, ctx, arg, arg2) }
   else if (route === 'train') { current = {}; (await import('./pages/train.js')).default(app, ctx, arg) }
   else { const [fn, mod] = pages[route]; current = mod; fn(app, ctx) }
   if (my !== token) return
