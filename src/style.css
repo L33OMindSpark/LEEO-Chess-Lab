@@ -355,6 +355,9 @@ body{overflow-x:clip}
 .xwrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
 .xcanvas{position:relative;height:calc(100vh - 290px);min-height:520px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;cursor:grab;touch-action:none}
 .xcanvas:active{cursor:grabbing}
+.xcanvas.full{position:fixed;inset:0;height:auto;min-height:0;z-index:90;border-radius:0;border:0}
+.xclose{position:absolute;top:14px;right:14px}
+body.xfull .top{display:none}
 .xcanvas svg{display:block;font-family:var(--sans);user-select:none}
 .xzoom{position:absolute;right:12px;bottom:12px;display:grid;gap:6px}
 .xhint{position:absolute;left:14px;bottom:10px;font-size:.8rem;color:var(--faint);pointer-events:none}
