@@ -28,6 +28,7 @@ export default function (root, ctx, { begin, signIn }) {
     <h1 class="hin" style="--d:.05s">See how you really play chess.</h1>
     <p class="lead hin" style="--d:.18s">Enter a chess.com username. Every public game is read and reviewed by Stockfish, newest first, and you get your real level, your openings, your habits and a plain verdict on whether you are improving.</p>
     <form id="hform" class="hin" style="--d:.3s"><input id="huser" class="field" placeholder="chess.com username" value="${esc(last)}" aria-label="chess.com username" spellcheck="false" autocomplete="off"><button class="btn primary big">Analyse games</button></form>
+    <p class="note hin" style="--d:.36s">Preparing for an opponent? <a href="#/scout">Scout any player</a>: how to beat them, their opening tree, and a bot that plays like them.</p>
     <p class="note hin" style="--d:.4s">Runs in your browser. Nothing is uploaded and no account is needed.${cloud.enabled ? ` Prefer to let a server do the work in the background? <a href="#/${cloud.signedIn() ? 'accounts' : 'login'}">${cloud.signedIn() ? 'Open your accounts' : 'Sign in'}</a>.` : ''}</p>
   </div>
   <div class="hero-r hin" style="--d:.2s"><div class="stage" id="stage"></div><div class="stagectl"><button class="btn small pill" id="pp">Pause</button><button class="btn small pill" id="rs">Restart</button></div></div></section>

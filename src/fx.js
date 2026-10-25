@@ -34,7 +34,7 @@ export function enhance(root, mode = 'nav') {
   root.querySelectorAll('.chart').forEach(c => cio.observe(c))
 }
 
-function positionSegs(root, animate) {
+export function positionSegs(root, animate) {
   root.querySelectorAll('.seg').forEach((s, i) => {
     const b = s.querySelector('[aria-pressed=true]'), th = s.querySelector('.thumb')
     if (!b || !th) return

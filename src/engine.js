@@ -21,6 +21,22 @@ export class Engine {
   }
   send(s) { this.t.send(s) }
   stop() { if (this.busy) this.send('stop') }
+  // One move at a chosen playing strength, for the twin bot. Resolves with a UCI move like e2e4.
+  play(fen, elo, ms = 600) {
+    const run = () => new Promise(res => {
+      this.busy = true
+      this.on = l => { if (l.startsWith('bestmove')) { this.on = null; this.busy = false; res(l.split(' ')[1]) } }
+      this.send('setoption name UCI_LimitStrength value true')
+      this.send('setoption name UCI_Elo value ' + Math.max(1320, Math.min(3190, Math.round(elo))))
+      this.send('setoption name MultiPV value 1')
+      this.send('position fen ' + fen)
+      this.send('go movetime ' + ms)
+    })
+    const prev = this.chain
+    const p = this.ready.then(() => prev).then(run)
+    this.chain = p.catch(() => {})
+    return p
+  }
   terminate() { this.t.terminate() }
   // Resolves { lines: [{mpv, depth, cp, mate, pv:[uci]}] } with scores from White's point of view.
   search(fen, depth, multipv = 1, onInfo, skip) {

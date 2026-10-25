@@ -23,7 +23,7 @@ const FAM_END = new Set(['Defense', 'Opening', 'Gambit', 'Game', 'Attack', 'Syst
 function openingOf(pgn) {
   const url = head(pgn, 'ECOUrl'), eco = head(pgn, 'ECO') || '?'
   if (!url) return { eco, fam: 'Unknown', name: 'Unknown' }
-  const words = (url.split('/openings/')[1] || '').split(/-\d/)[0].split('-').filter(Boolean)
+  const words = (url.split('/openings/')[1] || '').split(/\.\.\.|-\d/)[0].split('-').filter(Boolean)
   if (!words.length) return { eco, fam: 'Unknown', name: 'Unknown' }
   let k = words.findIndex(w => FAM_END.has(w))
   k = k >= 0 ? k + 1 : Math.min(2, words.length)
@@ -48,13 +48,16 @@ export function norm(g, user) {
 }
 
 // Reads the whole archive (cached per month), newest first. since = 'YYYY/MM' or ''.
-export async function loadGames(user, since, onProgress, keep = KEEP_PGN) {
+// chess.com spells names without apostrophes in its links (Kings Indian Defense); put them back for display
+const tidy = s => s.replace(/\.{2,}.*$/, '').replace(/\b(King|Queen|Bishop|Petrov|Alekhine|Philidor|Owen|Nimzowitsch|Grob|Elephant)s\b(?!')/g, "$1's").trim()
+
+export async function loadGames(user, since, onProgress, keep = KEEP_PGN, limit = 0) {
   const { archives } = await j(`${B}${user}/games/archives`)
   let list = archives.map(u => u.split('/').slice(-2).join('/')).filter(ym => !since || ym >= since).reverse()
   const d = new Date(), ym = (y, m) => `${y}/${String(m).padStart(2, '0')}`
   const live = new Set([ym(d.getUTCFullYear(), d.getUTCMonth() + 1), ym(d.getUTCFullYear(), d.getUTCMonth() ? d.getUTCMonth() : 12)])
   const months = {}, fresh = []
-  let i = 0, done = 0
+  let i = 0, done = 0, got = 0
   await Promise.all(Array.from({ length: 4 }, async () => {
     while (i < list.length) {
       const m = list[i++]
@@ -64,12 +67,14 @@ export async function loadGames(user, since, onProgress, keep = KEEP_PGN) {
         if (!live.has(m)) fresh.push(m)
       }
       months[m] = data
+      got += data.length
+      if (limit && got >= limit) i = list.length // a very busy player: the newest months are enough
       onProgress(++done, list.length)
     }
   }))
   for (const m of fresh) await kvSet(`m:${user}:${m}`, months[m]) // cached with moves, so "analyse everything" never has to download twice
-  const all = list.flatMap(m => months[m]).sort((a, b) => b.t - a.t)
-  all.forEach((g, k) => { if (k >= keep) delete g.pgn })
+  const all = list.flatMap(m => months[m] || []).sort((a, b) => b.t - a.t)
+  all.forEach((g, k) => { g.fam = tidy(g.fam); g.name = tidy(g.name); if (k >= keep) delete g.pgn })
   return all
 }
 

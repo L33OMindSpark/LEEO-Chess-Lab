@@ -9,6 +9,9 @@ To rebuild after changing code: `npm install` once, then `npm run build`. For de
 ## What it does
 Overview, skills against your opponents (radar), playstyle and habits, openings and an opening doctor, an engine report, mistake patterns, a spaced-repetition blunder trainer, weekly targets, game history with move-by-move review, and your own "why I lost" tags. The pages are grouped as Overview, Insights, Improve and Games.
 
+## Scouting
+Under Scout: type any chess.com username for a preparation report (how to beat them, a Stalker score for how exploitable they look, openings and weak lines, clock and nerves, traps, when they play), an opening tree built from their games, and a twin bot that plays their openings from their real games and then Stockfish at a strength you choose. It reads public games only and keeps nothing on a server. The Stalker score is 35% predictable repertoire, 30% weakest opening, 15% tilt, 20% clock trouble.
+
 ## Opening explorer and defense explorer
 Under Learn: two big clickable trees of every opening and defense (about 3,500 lines), with a board for each, search, a link for each branch, your own results on every branch, and a download button for a picture of any branch. `node scripts/make-posters.mjs` draws a poster for every large family into `posters/` (PNG needs Google Chrome). Opening names and moves come from the open Lichess openings list (CC0), rebuilt with `node scripts/build-openings.mjs`.
 
