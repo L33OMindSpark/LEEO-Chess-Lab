@@ -26,8 +26,8 @@ for (const [i, kind] of [[1, 'defenses'], [0, 'openings']]) {
   }
   // one picture per first-move group, opened one level only
   for (const g of root.kids) {
-    const ex = new Set([g.id]); g.kids.forEach(k => ex.add(k.id))
-    writeFileSync(`${OUT}${kind}-overview-${slug(g.name)}.svg`, poster(g, ex, { title: g.name, subtitle: `${g.kids.length} families. ${kind === 'defenses' ? 'Defense explorer' : 'Opening explorer'}` }))
+    // every family and every variation in one picture (vector, so it stays sharp at any zoom)
+    writeFileSync(`${OUT}${kind}-ALL-${slug(g.name)}.svg`, poster(g, allIds(g), { title: g.name, subtitle: `${g.kids.length} families, ${(g.size - 1).toLocaleString()} lines in total. ${kind === 'defenses' ? 'Defense explorer' : 'Opening explorer'}` }))
   }
 }
 console.log('posters:', made, 'in', OUT)

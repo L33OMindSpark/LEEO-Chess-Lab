@@ -18,14 +18,14 @@ export default async function (root, ctx, kind = 'defenses', sel0) {
   const full = prepare(data)
   let focus = 'All', top = full, expanded = new Set(), selected = null, hits = null, prev = new Set(), mine = false
   const view = { x: 20, y: 20, k: 1 }
-  const setRoot = label => { focus = label; top = label === 'All' ? full : find(full, full.id + '>' + label); expanded = new Set([top.id, ...(label === 'All' ? top.kids.map(k => k.id) : [])]); selected = null; hits = null }
+  const setRoot = label => { focus = label; top = label === 'All' ? full : find(full, full.id + '>' + label); expanded = allIds(top); selected = null; hits = null } // everything open by default, so every variation is on the chart
   setRoot('All')
 
   root.innerHTML = `<div class="phead"><div><h1>${isDef ? 'Defense explorer' : 'Opening explorer'}</h1>
     <p>${isDef ? 'What to play as Black against each first move, with every variation. Click a name to open everything under it.' : 'The main openings for White, with every variation. Click a name to open everything under it.'}</p></div>${tabs(`explorer/${kind}`, EX_TABS)}</div>
   <div class="xbar"><input id="xq" class="field" placeholder="Search ${isDef ? 'defenses' : 'openings'}, like Najdorf or Dragon" autocomplete="off">
     <div class="chips" id="xf">${['All', ...full.kids.map(k => k.name)].map(l => `<button class="chip" data-f="${esc(l)}" aria-pressed="${l === 'All'}">${esc(l)}</button>`).join('')}</div>
-    <div class="xtools"><button class="btn small" id="xall">Open everything</button><button class="btn small" id="xnone">Collapse</button><button class="btn small" id="xfit">Fit to screen</button><button class="btn small" id="xfull">Full screen</button>${S.games.length ? '<button class="btn small chip" id="xmine" aria-pressed="false">Show my games</button>' : ''}
+    <div class="xtools"><button class="btn small" id="xall">Open everything</button><button class="btn small" id="xnone">Collapse to families</button><button class="btn small" id="xfit">Fit to screen</button><button class="btn small" id="xfull">Full screen</button>${S.games.length ? '<button class="btn small chip" id="xmine" aria-pressed="false">Show my games</button>' : ''}
       <button class="btn small primary" id="xpng">Download picture</button><button class="btn small" id="xsvg">SVG</button></div></div>
   <div class="xwrap"><div class="xcanvas" id="xc"><svg id="xs" width="100%" height="100%"><g id="vp"></g></svg>
     <div class="xzoom"><button class="btn small" id="zin" aria-label="Zoom in">+</button><button class="btn small" id="zout" aria-label="Zoom out">&minus;</button></div>
@@ -122,9 +122,9 @@ export default async function (root, ctx, kind = 'defenses', sel0) {
   $('#xfull').onclick = () => { const on = cv.classList.toggle('full'); document.body.classList.toggle('xfull', on); document.body.style.overflow = on ? 'hidden' : ''; $('#xfull').textContent = 'Full screen'; if (on) cv.insertAdjacentHTML('beforeend', '<button class="btn small xclose" id="xclose">Close full screen</button>'), $('#xclose').onclick = () => { $('#xclose').remove(); leave() }; else $('#xclose')?.remove() }
   const onKey = e => { if (e.key === 'Escape' && cv.classList.contains('full')) { $('#xclose')?.remove(); leave() } }
   addEventListener('keydown', onKey)
-  $('#xall').onclick = () => { expandAll(top); draw(); fit() }
-  $('#xnone').onclick = () => { expanded = new Set([top.id]); hits = null; selected = null; draw(); fit(); panel() }
-  $('#xf').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; root.querySelectorAll('#xf .chip').forEach(c => c.setAttribute('aria-pressed', c === b)); setRoot(b.dataset.f); draw(); fit(); panel() })
+  $('#xall').onclick = () => { expandAll(top); view.k = 1; draw(); centerOn(top) }
+  $('#xnone').onclick = () => { expanded = new Set([top.id, ...top.kids.map(k => k.id)]); hits = null; selected = null; draw(); fit(); panel() }
+  $('#xf').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; root.querySelectorAll('#xf .chip').forEach(c => c.setAttribute('aria-pressed', c === b)); setRoot(b.dataset.f); view.k = 1; draw(); centerOn(top); panel() })
   $('#xpng').onclick = e => { const ex = new Set(expanded); download(top, ex, e.target) }
   $('#xsvg').onclick = () => save(new Blob([svgOf(top, expanded)], { type: 'image/svg+xml' }), `${fileName(top.name === 'Chess openings' || top.name === 'Chess defenses' ? kind : top.name)}.svg`)
   const mineBtn = $('#xmine'); if (mineBtn) mineBtn.onclick = () => { mine = !mine; mineBtn.setAttribute('aria-pressed', mine); draw(); panel() }
@@ -147,7 +147,7 @@ export default async function (root, ctx, kind = 'defenses', sel0) {
   else {
     // first visit: open the biggest family so there is something to look at straight away
     const big = full.kids[0]?.kids[0]
-    if (big) { expandAll(big); selected = big; view.k = 1; draw(); panel(); centerOn(big) } else fit()
+    if (big) { selected = big; view.k = 1; draw(); panel(); centerOn(big) } else fit()
   }
   ctx.onCleanup(() => { clearTimeout(t); removeEventListener('keydown', onKey); document.body.classList.remove('xfull'); document.body.style.overflow = '' })
 }
